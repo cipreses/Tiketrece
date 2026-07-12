@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+
+{% block title %}Ticket #{{ ticket.id }}{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <div class="main-title-block">
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+            <a href="{% url 'tickets_list' %}" style="font-size: 0.9rem; color: var(--text-secondary);">&larr; Volver al listado</a>
+        </div>
+        <h1>🎟️ Ticket #{{ ticket.id }}: {{ ticket.titulo }}</h1>
+        <p>Creado el {{ ticket.creado_en|date:"d/m/Y H:i" }} por <span style="color: var(--accent);">{{ ticket.autor.email }}</span></p>
+    </div>
+    <div>
+        <span class="badge badge-{{ ticket.estado }}" style="padding: 0.5rem 1.25rem; font-size: 0.9rem;">{{ ticket.get_estado_display }}</span>
+    </div>
+</div>
+
+<div class="ticket-detail-grid">
+    
+    <!-- Left Column: Details, Comments, and Actions -->
+    <div style="display: flex; flex-direction: column; gap: 2rem;">
+        
+        <!-- Ticket Body -->
+        <div class="card">
+            <h3 class="card-title" style="border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; color: var(--text-primary);">📝 Descripción</h3>
+            <p style="line-height: 1.6; white-space: pre-wrap; font-size: 1.05rem; padding-top: 0.5rem;">{{ ticket.descripcion }}</p>
+        </div>
+        
+        <!-- Actions Panel (Based on Permissions) -->
+        {% if puede_cambiar_estado or puede_cambiar_prioridad or puede_derivar or puede_reasignar %}
+        <div class="card">
+            <h3 class="card-title" style="color: var(--text-primary);">⚙️ Acciones de Gestión</h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+                
+                <!-- Change State -->
+                {% if puede_cambiar_estado %}
+                <div class="form-group">
+                    <label>Transición de Estado:</label>
+                    {% if transiciones_validas %}
+                    <form hx-post="{% url 'cambiar_estado' ticket.id %}" hx-swap="none">
+                        <select name="estado" class="form-control" onchange="this.form.dispatchEvent(new Event('submit'))">
+                            <option value="" disabled selected>-- Avanzar Estado --</option>
+                            {% for state_key in transiciones_validas %}
+                            <option value="{{ state_key }}">{{ state_key|capfirst }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                    {% else %}
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); padding: 0.75rem; border: 1px dashed var(--border); border-radius: 0.5rem; text-align: center;">
+                        Sin transiciones disponibles.
+                    </span>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                <!-- Change Priority -->
+                {% if puede_cambiar_prioridad %}
+                <div class="form-group">
+                    <label>Modificar Prioridad:</label>
+                    <form hx-post="{% url 'cambiar_prioridad' ticket.id %}" hx-swap="none">
+                        <select name="prioridad" class="form-control" onchange="this.form.dispatchEvent(new Event('submit'))">
+                            <option value="" disabled selected>-- Cambiar Prioridad --</option>
+                            {% for pk, pv in prioridades %}
+                            {% if pk != ticket.prioridad %}
+                            <option value="{{ pk }}">{{ pv }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </form>
+                </div>
+                {% endif %}
+                
+                <!-- Derive or Reassign Sector -->
+                {% if puede_reasignar %}
+                <div class="form-group">
+                    <label>Reasignar Sector (Global):</label>
+                    <form hx-post="{% url 'reasignar_sector' ticket.id %}" hx-swap="none">
+                        <select name="sector_id" class="form-control" onchange="this.form.dispatchEvent(new Event('submit'))">
+                            <option value="" disabled selected>-- Reasignar Sector --</option>
+                            {% for s in sectores %}
+                            {% if s.id != ticket.sector_id %}
+                            <option value="{{ s.id }}">{{ s.nombre }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </form>
+                </div>
+                {% elif puede_derivar %}
+                <div class="form-group">
+                    <label>Derivar Sector:</label>
+                    <form hx-post="{% url 'derivar_ticket' ticket.id %}" hx-swap="none">
+                        <select name="sector_id" class="form-control" onchange="this.form.dispatchEvent(new Event('submit'))">
+                            <option value="" disabled selected>-- Derivar a Sector --</option>
+                            {% for s in sectores %}
+                            {% if s.id != ticket.sector_id %}
+                            <option value="{{ s.id }}">{{ s.nombre }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </form>
+                </div>
+                {% endif %}
+                
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Comments Section -->
+        <div class="card">
+            <h3 class="card-title" style="color: var(--text-primary); border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">💬 Conversación e Historial</h3>
+            
+            <!-- Comment Form -->
+            {% if puede_comentar %}
+            <form hx-post="{% url 'agregar_comentario' ticket.id %}" hx-swap="none" style="margin: 1.5rem 0; display: flex; flex-direction: column; gap: 0.75rem;">
+                <textarea name="texto" class="form-control" rows="3" placeholder="Escribe tu comentario o respuesta aquí..." required></textarea>
+                <div style="display: flex; justify-content: flex-end;">
+                    <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1.5rem; font-size: 0.9rem;">
+                        Enviar Comentario
+                    </button>
+                </div>
+            </form>
+            {% else %}
+            <p class="text-muted" style="font-size: 0.85rem; border: 1px dashed var(--border); border-radius: 0.5rem; padding: 0.75rem; text-align: center; margin: 1rem 0;">
+                No tienes permisos para añadir comentarios a este ticket (no relacionado con tu alcance/sector).
+            </p>
+            {% endif %}
+            
+            <!-- Comment List -->
+            <div class="comments-list">
+                {% for c in comentarios %}
+                <div class="comment-card">
+                    <div class="comment-header">
+                        <span class="comment-author">{{ c.autor.first_name }} ({{ c.autor.email }})</span>
+                        <span>{{ c.creado_en|date:"d/m/Y H:i" }}</span>
+                    </div>
+                    <div class="comment-body">
+                        {{ c.texto|linebreaksbr }}
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted" style="text-align: center; padding: 2rem 0;">No hay comentarios registrados en este ticket.</p>
+                {% endfor %}
+            </div>
+        </div>
+        
+    </div>
+    
+    <!-- Right Column: Metadata & Audit Timeline -->
+    <div style="display: flex; flex-direction: column; gap: 2rem;">
+        
+        <!-- Metadata -->
+        <div class="card">
+            <h3 class="card-title" style="color: var(--text-primary);">📋 Datos del Ticket</h3>
+            <div class="ticket-meta-block">
+                
+                <div class="meta-row">
+                    <span class="label">Sector actual:</span>
+                    <span class="val" style="color: var(--accent);">🏢 {{ ticket.sector.nombre }}</span>
+                </div>
+                
+                <div class="meta-row">
+                    <span class="label">Prioridad:</span>
+                    <span class="val">
+                        <span class="badge badge-{{ ticket.prioridad }}">{{ ticket.get_prioridad_display }}</span>
+                    </span>
+                </div>
+                
+                <div class="meta-row">
+                    <span class="label">Autor:</span>
+                    <span class="val" style="font-size: 0.85rem; word-break: break-all;">{{ ticket.autor.email }}</span>
+                </div>
+                
+                <div class="meta-row">
+                    <span class="label">Fecha creado:</span>
+                    <span class="val">{{ ticket.creado_en|date:"d/m/Y H:i" }}</span>
+                </div>
+                
+                <div class="meta-row">
+                    <span class="label">Último cambio:</span>
+                    <span class="val">{{ ticket.actualizado_en|date:"d/m/Y H:i" }}</span>
+                </div>
+                
+                {% if ticket.cerrado_en %}
+                <div class="meta-row" style="background-color: rgba(239, 68, 68, 0.05); border-radius: 0.25rem; padding: 0.5rem;">
+                    <span class="label" style="color: var(--danger);">Fecha cerrado:</span>
+                    <span class="val" style="color: var(--danger);">{{ ticket.cerrado_en|date:"d/m/Y H:i" }}</span>
+                </div>
+                {% endif %}
+                
+                {% if ticket.derivado_desde_sector %}
+                <div class="meta-row">
+                    <span class="label">Derivado desde:</span>
+                    <span class="val">{{ ticket.derivado_desde_sector.nombre }}</span>
+                </div>
+                {% endif %}
+                
+            </div>
+        </div>
+        
+        <!-- Timeline Audit -->
+        <div class="card">
+            <h3 class="card-title" style="color: var(--text-primary); border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">👁️ Registro de Auditoría</h3>
+            <div class="timeline" style="margin-top: 1rem;">
+                {% for item in historial %}
+                <div class="timeline-item">
+                    <div class="timeline-time">{{ item.creado_en|date:"d/m/Y H:i" }}</div>
+                    <div class="timeline-desc">
+                        {% if item.tipo == 'estado' %}
+                        Se cambió el estado de <span class="badge badge-{{ item.valor_anterior }}" style="font-size:0.65rem;">{{ item.valor_anterior }}</span> a <span class="badge badge-{{ item.valor_nuevo }}" style="font-size:0.65rem;">{{ item.valor_nuevo }}</span>.
+                        {% elif item.tipo == 'prioridad' %}
+                        Se modificó la prioridad de <span class="badge badge-{{ item.valor_anterior }}" style="font-size:0.65rem;">{{ item.valor_anterior }}</span> a <span class="badge badge-{{ item.valor_nuevo }}" style="font-size:0.65rem;">{{ item.valor_nuevo }}</span>.
+                        {% elif item.tipo == 'sector' %}
+                        Se derivó/reasignó el sector de <strong>{{ item.valor_anterior }}</strong> a <strong>{{ item.valor_nuevo }}</strong>.
+                        {% endif %}
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--accent);">Actor: {{ item.actor.first_name }} ({{ item.actor.email }})</div>
+                </div>
+                {% empty %}
+                <p class="text-muted" style="font-size: 0.85rem; text-align: center; padding: 1rem 0;">No se registran cambios auditables en este ticket.</p>
+                {% endfor %}
+            </div>
+        </div>
+        
+    </div>
+    
+</div>
+{% endblock %}

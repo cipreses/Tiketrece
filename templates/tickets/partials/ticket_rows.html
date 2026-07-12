@@ -1,0 +1,25 @@
+{% for ticket in tickets %}
+<tr style="cursor: pointer;" onclick="window.location='{% url 'ticket_detail' ticket.id %}'">
+    <td style="font-weight: 700; color: var(--accent);">#{{ ticket.id }}</td>
+    <td style="font-weight: 600;">{{ ticket.titulo }}</td>
+    <td>🏢 {{ ticket.sector.nombre }}</td>
+    <td>
+        <span class="badge badge-{{ ticket.estado }}">{{ ticket.get_estado_display }}</span>
+    </td>
+    <td>
+        <span class="badge badge-{{ ticket.prioridad }}">{{ ticket.get_prioridad_display }}</span>
+    </td>
+    <td style="font-size: 0.85rem; color: var(--text-secondary);">
+        {{ ticket.autor.email }}
+    </td>
+    <td style="font-size: 0.85rem; color: var(--text-secondary); text-align: right;">
+        {{ ticket.actualizado_en|date:"d/m/Y H:i" }}
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+        No se encontraron tickets con los filtros seleccionados o bajo tu alcance.
+    </td>
+</tr>
+{% endfor %}

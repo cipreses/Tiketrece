@@ -1,0 +1,89 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sistema de Tickets{% endblock %} | 13 de Julio</title>
+    
+    <!-- Outfit Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Global CSS Styles -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    
+    <!-- HTMX Script -->
+    <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVntoLPM5g5cSBOBum37gIMCZOjQz55wzMsR58AH612LocSlto3URy" crossorigin="anonymous"></script>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        {% if user.is_authenticated %}
+        <aside class="sidebar">
+            <div class="logo">
+                🎫 Tiket<span>rece</span>
+            </div>
+            
+            <nav class="nav-container">
+                <ul class="nav-menu">
+                    <li class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                        <a href="{% url 'dashboard' %}">
+                            📊 Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item {% if request.resolver_match.url_name == 'tickets_list' or request.resolver_match.url_name == 'ticket_detail' %}active{% endif %}">
+                        <a href="{% url 'tickets_list' %}">
+                            🎟️ Tickets
+                        </a>
+                    </li>
+                    {% if user.rol == 'directivo' or user.es_superadmin %}
+                    <li class="nav-item {% if request.resolver_match.url_name == 'sectores_list' %}active{% endif %}">
+                        <a href="{% url 'sectores_list' %}">
+                            🏢 Sectores (Setup)
+                        </a>
+                    </li>
+                    <li class="nav-item {% if request.resolver_match.url_name == 'usuarios_list' %}active{% endif %}">
+                        <a href="{% url 'usuarios_list' %}">
+                            👥 Usuarios & Roles
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <span class="user-name">{{ user.first_name }}</span>
+                    <span class="user-role">{{ user.rol }}</span>
+                </div>
+                <a href="{% url 'logout' %}" class="btn btn-secondary w-full" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+                    🚪 Cerrar Sesión
+                </a>
+            </div>
+        </aside>
+        {% endif %}
+        
+        <!-- Main Panel Content -->
+        <main class="main-content">
+            <!-- Messages Banner -->
+            {% if messages %}
+            <div class="messages-container">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

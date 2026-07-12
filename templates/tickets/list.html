@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}Tickets{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <div class="main-title-block">
+        <h1>🎟️ Listado de Tickets</h1>
+        <p>Gestioná y hacé seguimiento de las solicitudes</p>
+    </div>
+    <div>
+        <a href="{% url 'crear_ticket' %}" class="btn btn-primary">
+            ➕ Crear Ticket
+        </a>
+    </div>
+</div>
+
+<!-- Filters Panel -->
+<div class="card" style="margin-bottom: 2rem;">
+    <h3 class="card-title" style="margin-bottom: 1.5rem; font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.5rem;">
+        🔍 Filtrar Solicitudes
+    </h3>
+    
+    <form hx-get="{% url 'tickets_list' %}" hx-target="#ticket-table-body" hx-trigger="change, keyup delay:300ms" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+        
+        <div class="form-group">
+            <label for="sector">Sector:</label>
+            <select name="sector" id="sector" class="form-control">
+                <option value="">-- Todos los sectores --</option>
+                {% for s in sectores %}
+                <option value="{{ s.id }}" {% if f_sector == s.id|stringformat:"i" %}selected{% endif %}>{{ s.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="estado">Estado:</label>
+            <select name="estado" id="estado" class="form-control">
+                <option value="">-- Todos los estados --</option>
+                {% for key, val in estados %}
+                <option value="{{ key }}" {% if f_estado == key %}selected{% endif %}>{{ val }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="prioridad">Prioridad:</label>
+            <select name="prioridad" id="prioridad" class="form-control">
+                <option value="">-- Todas las prioridades --</option>
+                {% for key, val in prioridades %}
+                <option value="{{ key }}" {% if f_prioridad == key %}selected{% endif %}>{{ val }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="autor">Autor (email):</label>
+            <input type="text" name="autor" id="autor" class="form-control" placeholder="Buscar por email..." value="{{ f_autor|default:'' }}">
+        </div>
+        
+    </form>
+</div>
+
+<!-- Tickets Table List -->
+<div class="card">
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width: 80px;">Ticket</th>
+                    <th>Título</th>
+                    <th>Sector</th>
+                    <th>Estado</th>
+                    <th>Prioridad</th>
+                    <th>Solicitado por</th>
+                    <th style="text-align: right; width: 180px;">Actualizado</th>
+                </tr>
+            </thead>
+            <tbody id="ticket-table-body">
+                {% include 'tickets/partials/ticket_rows.html' %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

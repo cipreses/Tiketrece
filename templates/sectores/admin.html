@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Administración de Sectores{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <div class="main-title-block">
+        <h1>🏢 Administración de Sectores</h1>
+        <p>Configuración y gestión de sectores de destino para tickets</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
+    <!-- Create Sector Card -->
+    <div class="card" style="height: fit-content;">
+        <h3 class="card-title" style="color: var(--text-primary);">🏢 Nuevo Sector</h3>
+        <form method="POST" action="{% url 'crear_sector' %}" style="display: flex; flex-direction: column; gap: 1rem;">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="nombre">Nombre del Sector:</label>
+                <input type="text" id="nombre" name="nombre" class="form-control" placeholder="Ej: Laboratorio" required maxlength="100">
+            </div>
+            <div class="form-group">
+                <label for="descripcion">Descripción:</label>
+                <textarea id="descripcion" name="descripcion" class="form-control" rows="4" placeholder="Breve detalle de las responsabilidades..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary w-full">
+                Crear Sector
+            </button>
+        </form>
+    </div>
+
+    <!-- Sectors List Card -->
+    <div class="card">
+        <h3 class="card-title" style="color: var(--text-primary);">📋 Listado de Sectores</h3>
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Descripción</th>
+                        <th>Estado</th>
+                        <th style="text-align: right; width: 150px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sector in sectores %}
+                    <tr>
+                        <td style="font-weight: 700; color: {% if sector.activo %}var(--text-primary){% else %}var(--text-secondary){% endif %};">
+                            {{ sector.nombre }}
+                        </td>
+                        <td style="color: var(--text-secondary); font-size: 0.9rem;">
+                            {{ sector.descripcion }}
+                        </td>
+                        <td>
+                            {% if sector.activo %}
+                            <span class="badge badge-resuelto">Activo</span>
+                            {% else %}
+                            <span class="badge badge-cerrado">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            {% if sector.activo %}
+                            <button hx-post="{% url 'desactivar_sector' sector.id %}" hx-swap="none" class="btn btn-danger" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">
+                                Desactivar
+                            </button>
+                            {% else %}
+                            <button hx-post="{% url 'activar_sector' sector.id %}" hx-swap="none" class="btn btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">
+                                Activar
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                            No hay sectores registrados en el sistema.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

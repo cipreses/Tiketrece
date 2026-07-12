@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}Iniciar Sesión{% endblock %}
+
+{% block content %}
+<div class="login-container card">
+    <div style="text-align: center; margin-bottom: 1.5rem;">
+        <h1 style="font-size: 2rem; margin-bottom: 0.5rem;">🎫 Tiket<span>rece</span></h1>
+        <p class="text-muted">Sistema de Tickets de Servicios</p>
+        <p style="font-size: 0.85rem; color: var(--accent); margin-top: 0.25rem;">Colegio 13 de Julio</p>
+    </div>
+
+    <!-- Real Google OAuth Login Link -->
+    <a href="{% url 'google_login' %}" class="btn btn-primary w-full" style="padding: 1rem; border-radius: 0.5rem; justify-content: center; font-size: 1.05rem;">
+        <svg style="width: 20px; height: 20px; fill: currentColor;" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114-3.41 0-6.19-2.78-6.19-6.19s2.78-6.19 6.19-6.19c1.7 0 3.25.69 4.39 1.8l3.23-3.23C19.2 2.4 15.93 1 12.24 1 5.68 1 .37 6.3.37 12.87S5.68 24.74 12.24 24.74c6.78 0 11.23-4.76 11.23-11.43 0-.74-.07-1.47-.23-2.025H12.24z"/>
+        </svg>
+        &nbsp;&nbsp;Iniciar sesión con Google
+    </a>
+
+    {% if enable_mock_auth %}
+    <div style="width: 100%; border-top: 1px solid var(--border); margin: 1.5rem 0; position: relative; text-align: center;">
+        <span style="position: absolute; top: -10px; background-color: var(--bg-card); padding: 0 1rem; left: 50%; transform: translateX(-50%); font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase;">O Simulación</span>
+    </div>
+
+    <!-- Developer Mock Login Form -->
+    <form method="POST" action="{% url 'login' %}" class="w-full" style="display: flex; flex-direction: column; gap: 1rem;">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="email">Correo Electrónico (Simulado):</label>
+            <input type="email" id="email" name="email" class="form-control" placeholder="ejemplo@13dejulio.edu.ar" required 
+                   pattern="^[a-zA-Z0-9._%+-]+@13dejulio\.edu\.ar$" title="Debe terminar con @13dejulio.edu.ar">
+            <small style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.25rem;">
+                * Debe pertenecer al dominio <strong>13dejulio.edu.ar</strong>.
+            </small>
+        </div>
+
+        <div class="form-group">
+            <label for="name">Nombre de Usuario (Simulado):</label>
+            <input type="text" id="name" name="name" class="form-control" placeholder="Nombre completo" required>
+        </div>
+
+        <button type="submit" class="btn btn-secondary w-full" style="padding: 1rem;">
+            ⚡ Ingreso Rápido (Mock Dev)
+        </button>
+    </form>
+    {% endif %}
+    
+    <div style="margin-top: 2rem; font-size: 0.75rem; color: var(--text-secondary); text-align: center; line-height: 1.4;">
+        Este es un sistema de uso interno exclusivo.<br>
+        Solo se permiten cuentas pertenecientes al dominio @13dejulio.edu.ar.
+    </div>
+</div>
+{% endblock %}

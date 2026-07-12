@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <div class="main-title-block">
+        <h1>📊 Dashboard</h1>
+        <p>Métricas y estado general del sistema de tickets</p>
+    </div>
+    <div>
+        <a href="{% url 'crear_ticket' %}" class="btn btn-primary">
+            ➕ Crear Ticket
+        </a>
+    </div>
+</div>
+
+<!-- Indicator Cards -->
+<div class="metrics-grid">
+    <div class="card metric-card border-abierto">
+        <span class="metric-value">{{ indicadores.abiertos }}</span>
+        <span class="metric-label">Abiertos</span>
+    </div>
+    <div class="card metric-card border-en_progreso">
+        <span class="metric-value">{{ indicadores.en_progreso }}</span>
+        <span class="metric-label">En Progreso</span>
+    </div>
+    <div class="card metric-card border-en_espera">
+        <span class="metric-value">{{ indicadores.en_espera }}</span>
+        <span class="metric-label">En Espera</span>
+    </div>
+    <div class="card metric-card border-resuelto">
+        <span class="metric-value">{{ indicadores.resueltos }}</span>
+        <span class="metric-label">Resueltos</span>
+    </div>
+    <div class="card metric-card border-cerrado">
+        <span class="metric-value">{{ indicadores.cerrados }}</span>
+        <span class="metric-label">Cerrados</span>
+    </div>
+</div>
+
+<!-- Detailed Grid Metrics -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+    <!-- Sectors Table Metrics -->
+    <div class="card">
+        <h3 class="card-title">🏢 Tickets por Sector</h3>
+        {% if totales_sector %}
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Sector</th>
+                        <th style="text-align: right;">Cantidad de Tickets</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sector, count in totales_sector.items %}
+                    <tr>
+                        <td>{{ sector }}</td>
+                        <td style="text-align: right; font-weight: 700;">{{ count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted" style="text-align: center; padding: 2rem 0;">No hay tickets asignados a ningún sector.</p>
+        {% endif %}
+    </div>
+
+    <!-- Priorities Table Metrics -->
+    <div class="card">
+        <h3 class="card-title">⚠️ Tickets por Prioridad</h3>
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Prioridad</th>
+                        <th style="text-align: right;">Cantidad de Tickets</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for prioridad, count in totales_prioridad.items %}
+                    <tr>
+                        <td>
+                            <span class="badge badge-{{ prioridad }}">{{ prioridad }}</span>
+                        </td>
+                        <td style="text-align: right; font-weight: 700;">{{ count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

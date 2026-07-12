@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}Usuarios y Roles{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <div class="main-title-block">
+        <h1>👥 Gestión de Usuarios & Gobernanza de Roles</h1>
+        <p>Promoción de roles, asignación de sectores a agentes y administración de cuentas</p>
+    </div>
+</div>
+
+<div class="card">
+    <h3 class="card-title" style="color: var(--text-primary);">👥 Usuarios del Sistema</h3>
+    
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Usuario (Email)</th>
+                    <th>Nombre</th>
+                    <th>Rol del Sistema</th>
+                    <th>Sectores Asignados (Solo Agentes)</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in usuarios %}
+                <tr {% if not u.activo %}style="opacity: 0.5;"{% endif %}>
+                    <td>
+                        <span style="font-weight: 700; color: var(--accent);">{{ u.email }}</span>
+                        {% if u.es_superadmin %}
+                        <span class="badge badge-en_espera" style="font-size:0.6rem; padding: 0.1rem 0.4rem; vertical-align: middle; margin-left:0.25rem;">Superadmin</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ u.first_name }}</td>
+                    
+                    <!-- Role Dropdown Selector -->
+                    <td>
+                        <form hx-post="{% url 'cambiar_rol' u.id %}" hx-swap="none" style="display:inline-block;">
+                            <select name="rol" class="form-control" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;" onchange="this.form.dispatchEvent(new Event('submit'))">
+                                {% for r in roles %}
+                                <option value="{{ r }}" {% if u.rol == r %}selected{% endif %}>{{ r|capfirst }}</option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    </td>
+                    
+                    <!-- Agent Sector Assignments -->
+                    <td>
+                        {% if u.rol == 'agente' %}
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center;">
+                            {% for us in u.sectores.all %}
+                            <span class="badge badge-en_progreso" style="font-size: 0.7rem; display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.15rem 0.5rem;">
+                                {{ us.nombre }}
+                                <form hx-post="{% url 'desasignar_sector' u.id %}" hx-swap="none" style="display:inline;">
+                                    <input type="hidden" name="sector_id" value="{{ us.id }}">
+                                    <button type="submit" style="background:none; border:none; color:var(--text-primary); cursor:pointer; font-weight:bold; font-size:0.75rem;">&times;</button>
+                                </form>
+                            </span>
+                            {% empty %}
+                            <span style="font-size: 0.8rem; color: var(--text-secondary); italic;">Sin sectores</span>
+                            {% endfor %}
+                            
+                            <!-- Inline Add Sector Form -->
+                            <form hx-post="{% url 'asignar_sector' u.id %}" hx-swap="none" style="display:inline-flex; align-items:center; margin-left: 0.5rem;">
+                                <select name="sector_id" class="form-control" style="padding: 0.15rem 0.35rem; font-size: 0.75rem; width: auto;" onchange="if(this.value) { this.form.dispatchEvent(new Event('submit')) }">
+                                    <option value="" disabled selected>+</option>
+                                    {% for s in sectores %}
+                                    {% if s not in u.sectores.all %}
+                                    <option value="{{ s.id }}">{{ s.nombre }}</option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </form>
+                        </div>
+                        {% else %}
+                        <span class="text-muted" style="font-size: 0.85rem; font-style: italic;">N/A</span>
+                        {% endif %}
+                    </td>
+                    
+                    <!-- Active Status Toggle -->
+                    <td>
+                        <form hx-post="{% url 'cambiar_activo' u.id %}" hx-swap="none">
+                            {% if u.activo %}
+                            <input type="hidden" name="activo" value="false">
+                            <button type="submit" class="btn btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem; border-color: var(--success); color: var(--success);">
+                                Activo
+                            </button>
+                            {% else %}
+                            <input type="hidden" name="activo" value="true">
+                            <button type="submit" class="btn btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem; border-color: var(--danger); color: var(--danger);">
+                                Suspendido
+                            </button>
+                            {% endif %}
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                        No hay usuarios registrados en el sistema.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
