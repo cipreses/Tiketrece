@@ -89,6 +89,9 @@ h1, h2, h3, h4 {
 .logo-accent {
     color: var(--primary);
 }
+.logo-middle-t {
+    color: #adb0f7;
+}
 
 /* Navigation Links */
 .nav-menu {
