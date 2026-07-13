@@ -2,8 +2,8 @@
 
 - **Proyecto:** Tiketrece — Sistema de Tickets de Servicios (Escuela 13 de Julio)
 - **Stack:** Django 5.2 · PostgreSQL 16 · HTMX · `google-auth` (OAuth 2.0 / OIDC)
-- **Commits auditados:** `7d2ecef` (MVP + correcciones de seguridad) · `b081bb9` (Etapa 9 – Parte 1) · base previa `4e7c38c`
-- **Fecha:** 2026-07-13 (MVP) · 2026-07-13 (Etapa 9 – Parte 1)
+- **Commits auditados:** `7d2ecef` (MVP + seguridad) · `b081bb9` (Etapa 9 P1) · `745492e`+`f381a6a`+`461a565` (Etapa 9 P2) · `61287c9` (adjuntos al crear) · `1513112` (hardening prod) · base `4e7c38c`
+- **Fecha:** 2026-07-13
 - **Auditor:** Claude (control independiente; no participó del desarrollo)
 - **Documentos de referencia:** `spec_sistema_tickets_v2.md`, acta de aprobación Etapa 1
 
@@ -109,20 +109,59 @@ por test (`=1+1` → `'=1+1`).
 **Suite de tests:** **36/36 en verde** (28 del MVP + 8 de Etapa 9), corrida por el
 auditor contra PostgreSQL 16 real.
 
-## 7. Conclusión
+## 7. Etapa 9 — Parte 2 (notificaciones + adjuntos) · commits `745492e`, `f381a6a`, `461a565`, `61287c9`
 
-El MVP (Etapa 8) cumple la especificación v2 y las condiciones de aprobación de la
-Etapa 1, con la única falla de seguridad detectada ya corregida y verificada. La
-Etapa 9 – Parte 1 (búsqueda + export CSV) fue auditada y aprobada, con el hallazgo de
-CSV formula injection resuelto. La base es sólida, auditable y con cobertura de tests
-de los flujos críticos (36/36). **Apto para continuar** con las siguientes etapas
-(más features de Etapa 9, integración de credenciales reales de Google, despliegue) y
-para uso interno una vez configurada la OAuth App de producción.
+**Estado: ✅ APROBADA, sin observaciones abiertas.**
+
+**Notificaciones in-app (`745492e`):** generación en la capa de servicios dentro del
+`transaction.atomic`, dirigida a autor + agentes del sector (origen y destino en
+derivación/reasignación), excluyendo al actor y filtrando por `is_active`. Lista,
+contador y "marcar" filtrados por `request.user`, con guard **IDOR**
+(`get(pk, destinatario=request.user)` → `Http404`).
+
+**Adjuntos (`f381a6a` + fix `461a565`):** validación por **magic bytes** en servidor
+(SVG/exe/html rechazados), `seek(0)` antes de guardar, almacenamiento con **UUID**
+(sin path traversal), **descarga por vista autenticada** con `puede_ver_ticket`
+(`/media/` NO público), `Content-Disposition: attachment` + `nosniff`. Hallazgo del
+auditor resuelto: `MEDIA_ROOT`/`MEDIA_URL` no estaban definidos (riesgo de que
+adjuntos con datos personales cayeran fuera de `media/` y se commitearan) →
+configurados y verificados por test.
+
+**Adjuntos al crear ticket (`61287c9`):** subida opcional (hasta 5) en la creación,
+con **pre-validación de todos los archivos antes** del `transaction.atomic` (sin
+tickets a medias ni huérfanos) y helper `guardar_adjunto` reutilizado en creación y
+detalle (DRY). Input con `accept` + `capture` para cámara en móvil.
+
+## 8. Hardening de producción · commit `1513112`
+
+**Estado: ✅ APROBADO.**
+
+`config/settings.py` incorpora, **gateado a `DEBUG=False`** (no afecta dev ni tests):
+`SECURE_SSL_REDIRECT`, `SECURE_PROXY_SSL_HEADER`, cookies `Secure` (sesión y CSRF),
+HSTS (1 año + subdominios + preload), `SECURE_CONTENT_TYPE_NOSNIFF`,
+`X_FRAME_OPTIONS='DENY'` y `CSRF_TRUSTED_ORIGINS`. `ALLOWED_HOSTS` se lee de entorno
+con default **fail-closed** (`[]`) en producción.
+
+Verificación del auditor:
+- Suite con `DEBUG=True`: **51/51 en verde** (el gating no afecta dev/tests).
+- `manage.py check --deploy --fail-level WARNING` con `DEBUG=False` + clave fuerte:
+  **"System check identified no issues"** — deploy checks 100% limpios.
+
+## 9. Conclusión
+
+El MVP (Etapa 8), la **Etapa 9 completa** (búsqueda + export CSV, notificaciones,
+adjuntos y adjuntos al crear) y el **hardening de producción** fueron auditados y
+aprobados. Todos los hallazgos de seguridad detectados por el auditor —state CSRF
+constante, CSV formula injection, `MEDIA_ROOT` sin configurar— fueron corregidos y
+verificados. La base es sólida, auditable y con cobertura de tests de los flujos
+críticos (**51/51 en verde** contra PostgreSQL real) y los deploy checks de Django
+limpios. **Apto para uso interno** una vez configurada la OAuth App de producción y
+realizado el despliegue.
 
 ### Pendientes que dependen del usuario (no bloquean la aprobación técnica)
 
 1. Crear la OAuth App en Google Cloud Console y cargar `GOOGLE_CLIENT_ID` /
-   `GOOGLE_CLIENT_SECRET` + redirect URI de producción.
-2. Definir dominio/URL de despliegue.
-3. En producción: `DEBUG=False`, `ENABLE_MOCK_AUTH=False`, `SECRET_KEY` fuerte,
-   `ALLOWED_HOSTS` acotado (hoy `['*']`).
+   `GOOGLE_CLIENT_SECRET` + redirect URI de producción (https).
+2. Definir dominio/URL de despliegue y cargar `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS`.
+3. Desplegar según la receta (Proxmox + Nginx/TLS, o VPN/Cloudflare Access); en prod
+   `DEBUG=False`, `ENABLE_MOCK_AUTH=False`, `SECRET_KEY` fuerte.
