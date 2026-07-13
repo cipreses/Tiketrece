@@ -8,7 +8,12 @@
         <h1>🎟️ Listado de Tickets</h1>
         <p>Gestioná y hacé seguimiento de las solicitudes</p>
     </div>
-    <div>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        <div id="export-csv-btn-container">
+            <a href="{% url 'export_tickets_csv' %}?{{ request.GET.urlencode }}" class="btn btn-secondary">
+                📥 Exportar CSV
+            </a>
+        </div>
         <a href="{% url 'crear_ticket' %}" class="btn btn-primary">
             ➕ Crear Ticket
         </a>
@@ -22,6 +27,11 @@
     </h3>
     
     <form hx-get="{% url 'tickets_list' %}" hx-target="#ticket-table-body" hx-trigger="change, keyup delay:300ms" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+        
+        <div class="form-group">
+            <label for="q">Buscar por texto:</label>
+            <input type="text" name="q" id="q" class="form-control" placeholder="Buscar en título o desc..." value="{{ f_q|default:'' }}">
+        </div>
         
         <div class="form-group">
             <label for="sector">Sector:</label>

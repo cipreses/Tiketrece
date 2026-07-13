@@ -23,3 +23,9 @@
     </td>
 </tr>
 {% endfor %}
+
+<div id="export-csv-btn-container" hx-swap-oob="true">
+    <a href="{% url 'export_tickets_csv' %}?{{ request.GET.urlencode }}" class="btn btn-secondary">
+        📥 Exportar CSV
+    </a>
+</div>

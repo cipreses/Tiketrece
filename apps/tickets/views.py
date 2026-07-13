@@ -4,7 +4,7 @@ from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.http import HttpResponseForbidden, HttpResponse, Http404
 from django.core.exceptions import ValidationError
-from django.db.models import Count
+from django.db.models import Count, Q, Case, When, Value, IntegerField
 from sectores.models import Sector
 from tickets.models import Ticket, Comentario, HistorialTicket
 from tickets.permissions import (
@@ -66,6 +66,7 @@ def tickets_list_view(request):
     estado = request.GET.get('estado')
     prioridad = request.GET.get('prioridad')
     autor_email = request.GET.get('autor')
+    q = request.GET.get('q', '').strip()
     
     if sector_id:
         tickets = tickets.filter(sector_id=sector_id)
@@ -75,6 +76,8 @@ def tickets_list_view(request):
         tickets = tickets.filter(prioridad=prioridad)
     if autor_email:
         tickets = tickets.filter(autor__email__icontains=autor_email)
+    if q:
+        tickets = tickets.filter(Q(titulo__icontains=q) | Q(descripcion__icontains=q))
         
     # Tickets are ordered by updated_at desc by default (defined in Meta)
     
@@ -93,7 +96,8 @@ def tickets_list_view(request):
         'f_sector': sector_id,
         'f_estado': estado,
         'f_prioridad': prioridad,
-        'f_autor': autor_email
+        'f_autor': autor_email,
+        'f_q': q
     })
 
 @login_required
@@ -254,3 +258,81 @@ def agregar_comentario_view(request, ticket_id):
         messages.error(request, f"Error: {str(e)}")
         
     return HttpResponse(status=204, headers={'HX-Refresh': 'true'})
+
+
+import csv
+from django.http import StreamingHttpResponse
+
+class Echo:
+    """An object that implements just the write method of the file-like
+    interface and returns the line instead of writing to a file.
+    """
+    def write(self, value):
+        return value
+
+def sanitize_csv_cell(value):
+    if not isinstance(value, str):
+        return value
+    if not value:
+        return value
+    # CSV Formula Injection defense: prefix with ' if it starts with =, +, -, @, tab, or carriage return
+    if value[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return "'" + value
+    return value
+
+@login_required
+def export_tickets_csv_view(request):
+    # Base visible tickets according to user's role and scope (CRITICAL: applies first)
+    tickets = obtener_tickets_visibles(request.user)
+    
+    # Apply query filters (exactly like tickets_list_view)
+    sector_id = request.GET.get('sector')
+    estado = request.GET.get('estado')
+    prioridad = request.GET.get('prioridad')
+    autor_email = request.GET.get('autor')
+    q = request.GET.get('q', '').strip()
+    
+    if sector_id:
+        tickets = tickets.filter(sector_id=sector_id)
+    if estado:
+        tickets = tickets.filter(estado=estado)
+    if prioridad:
+        tickets = tickets.filter(prioridad=prioridad)
+    if autor_email:
+        tickets = tickets.filter(autor__email__icontains=autor_email)
+    if q:
+        tickets = tickets.filter(Q(titulo__icontains=q) | Q(descripcion__icontains=q))
+        
+    # Ordered by updated_at desc
+    tickets = tickets.order_by('-actualizado_en')
+    
+    def csv_rows():
+        # Excel UTF-8 BOM so Excel opens it with correct accent chars automatically
+        yield '\ufeff'
+        
+        pseudo_buffer = Echo()
+        writer = csv.writer(pseudo_buffer)
+        
+        # Header row
+        yield writer.writerow([
+            'id', 'titulo', 'sector', 'autor_email', 'prioridad', 'estado', 
+            'creado_en', 'actualizado_en', 'cerrado_en'
+        ])
+        
+        for ticket in tickets.select_related('sector', 'autor'):
+            yield writer.writerow([
+                ticket.id,
+                sanitize_csv_cell(ticket.titulo),
+                sanitize_csv_cell(ticket.sector.nombre),
+                sanitize_csv_cell(ticket.autor.email),
+                sanitize_csv_cell(ticket.get_prioridad_display()),
+                sanitize_csv_cell(ticket.get_estado_display()),
+                ticket.creado_en.strftime('%Y-%m-%d %H:%M:%S') if ticket.creado_en else '',
+                ticket.actualizado_en.strftime('%Y-%m-%d %H:%M:%S') if ticket.actualizado_en else '',
+                ticket.cerrado_en.strftime('%Y-%m-%d %H:%M:%S') if ticket.cerrado_en else ''
+            ])
+            
+    response = StreamingHttpResponse(csv_rows(), content_type="text/csv; charset=utf-8")
+    response['Content-Disposition'] = 'attachment; filename="tickets_export.csv"'
+    return response
+

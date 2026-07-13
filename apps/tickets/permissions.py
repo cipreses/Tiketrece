@@ -48,7 +48,16 @@ def puede_comentar_ticket(usuario, ticket):
 
 
 def puede_cambiar_estado(usuario, ticket):
-    return es_gestor_o_autor(usuario, ticket)
+    if not usuario.is_authenticated:
+        return False
+    if usuario.rol == 'directivo' or usuario.es_superadmin:
+        return True
+    if usuario.rol == 'agente' and usuario.sectores.filter(id=ticket.sector_id).exists():
+        return True
+    # Author (solicitante) can only change state to close (from resuelto) or to reopen (from cerrado)
+    if usuario == ticket.autor:
+        return ticket.estado in ['resuelto', 'cerrado']
+    return False
 
 
 def puede_cambiar_prioridad(usuario, ticket):

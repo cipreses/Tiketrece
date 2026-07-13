@@ -28,6 +28,7 @@ urlpatterns = [
     # Tickets
     path('tickets/', ticket_views.tickets_list_view, name='tickets_list'),
     path('tickets/crear/', ticket_views.crear_ticket_view, name='crear_ticket'),
+    path('tickets/export/', ticket_views.export_tickets_csv_view, name='export_tickets_csv'),
     path('tickets/<int:ticket_id>/', ticket_views.ticket_detail_view, name='ticket_detail'),
     path('tickets/<int:ticket_id>/estado/', ticket_views.cambiar_estado_view, name='cambiar_estado'),
     path('tickets/<int:ticket_id>/prioridad/', ticket_views.cambiar_prioridad_view, name='cambiar_prioridad'),
