@@ -34,6 +34,11 @@ urlpatterns = [
     path('notifications/', ticket_views.notificaciones_dropdown_view, name='notificaciones_dropdown'),
     path('notifications/<int:notif_id>/read/', ticket_views.marcar_leida_notificacion_view, name='marcar_leida_notificacion'),
     path('notifications/read-all/', ticket_views.marcar_todas_notificaciones_view, name='marcar_todas_notificaciones'),
+    
+    # Attachments
+    path('tickets/<int:ticket_id>/adjuntos/subir/', ticket_views.subir_adjunto_view, name='subir_adjunto'),
+    path('adjuntos/<int:adjunto_id>/descargar/', ticket_views.descargar_adjunto_view, name='descargar_adjunto'),
+    
     path('tickets/<int:ticket_id>/', ticket_views.ticket_detail_view, name='ticket_detail'),
     path('tickets/<int:ticket_id>/estado/', ticket_views.cambiar_estado_view, name='cambiar_estado'),
     path('tickets/<int:ticket_id>/prioridad/', ticket_views.cambiar_prioridad_view, name='cambiar_prioridad'),

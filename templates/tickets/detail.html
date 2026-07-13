@@ -191,6 +191,50 @@
             </div>
         </div>
         
+        <!-- Archivos Adjuntos -->
+        <div class="card">
+            <h3 class="card-title" style="color: var(--text-primary); border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+                📎 Archivos Adjuntos
+            </h3>
+            
+            <!-- List of Attachments -->
+            <div class="attachments-list" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                {% for adj in adjuntos %}
+                <div class="attachment-item" style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; border: 1px solid var(--border); border-radius: 0.5rem; background-color: rgba(255, 255, 255, 0.01);">
+                    <div style="display: flex; flex-direction: column; overflow: hidden; max-width: 70%;">
+                        <span style="font-size: 0.85rem; font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="{{ adj.nombre_original }}">
+                            {{ adj.nombre_original }}
+                        </span>
+                        <span style="font-size: 0.7rem; color: var(--text-secondary);">
+                            {{ adj.tamano|filesizeformat }} | por {{ adj.subido_por.first_name|default:adj.subido_por.email }}
+                        </span>
+                    </div>
+                    <a href="{% url 'descargar_adjunto' adj.id %}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                        📥 Descargar
+                    </a>
+                </div>
+                {% empty %}
+                <p class="text-muted" style="font-size: 0.85rem; text-align: center; padding: 1rem 0;">No hay archivos adjuntos en este ticket.</p>
+                {% endfor %}
+            </div>
+            
+            <!-- Upload Form -->
+            {% if puede_subir_adjuntos %}
+            <div style="margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                <form action="{% url 'subir_adjunto' ticket.id %}" method="post" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    {% csrf_token %}
+                    <div class="form-group" style="margin: 0;">
+                        <label for="archivo_input" style="font-size: 0.8rem; margin-bottom: 0.25rem;">Subir nuevo archivo (Máx. 10 MB, PDF o Imágenes):</label>
+                        <input type="file" name="archivo" id="archivo_input" class="form-control" style="font-size: 0.8rem; padding: 0.25rem;" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="padding: 0.4rem; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 0.25rem;">
+                        📤 Subir Adjunto
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        
         <!-- Timeline Audit -->
         <div class="card">
             <h3 class="card-title" style="color: var(--text-primary); border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">👁️ Registro de Auditoría</h3>

@@ -6,7 +6,7 @@ from django.http import HttpResponseForbidden, HttpResponse, Http404
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Q, Case, When, Value, IntegerField
 from sectores.models import Sector
-from tickets.models import Ticket, Comentario, HistorialTicket, Notificacion
+from tickets.models import Ticket, Comentario, HistorialTicket, Notificacion, Adjunto
 from tickets.permissions import (
     obtener_tickets_visibles,
     puede_ver_ticket,
@@ -14,7 +14,8 @@ from tickets.permissions import (
     puede_cambiar_estado,
     puede_cambiar_prioridad,
     puede_derivar_ticket,
-    puede_reasignar_sector
+    puede_reasignar_sector,
+    es_gestor_o_autor
 )
 from tickets.services import (
     crear_ticket,
@@ -135,13 +136,15 @@ def ticket_detail_view(request, ticket_id):
         'estados': Ticket.ESTADOS,
         'prioridades': Ticket.PRIORIDADES,
         'transiciones_validas': transiciones_validas,
+        'adjuntos': ticket.adjuntos.all(),
         
         # Permissions flags
         'puede_comentar': puede_comentar_ticket(request.user, ticket),
         'puede_cambiar_estado': puede_cambiar_estado(request.user, ticket),
         'puede_cambiar_prioridad': puede_cambiar_prioridad(request.user, ticket),
         'puede_derivar': puede_derivar_ticket(request.user, ticket),
-        'puede_reasignar': puede_reasignar_sector(request.user, ticket)
+        'puede_reasignar': puede_reasignar_sector(request.user, ticket),
+        'puede_subir_adjuntos': es_gestor_o_autor(request.user, ticket)
     }
     
     return render(request, 'tickets/detail.html', context)
@@ -367,5 +370,95 @@ def marcar_leida_notificacion_view(request, notif_id):
 def marcar_todas_notificaciones_view(request):
     Notificacion.objects.filter(destinatario=request.user, leida=False).update(leida=True)
     return notificaciones_dropdown_view(request)
+
+
+import os
+from django.http import FileResponse
+
+def validar_archivo_adjunto(file_obj):
+    # 1. Size check: max 10 MB
+    MAX_SIZE = 10 * 1024 * 1024
+    if file_obj.size > MAX_SIZE:
+        raise ValidationError("El archivo excede el límite de tamaño permitido (10 MB).")
+
+    # 2. Extension whitelist check
+    ext = os.path.splitext(file_obj.name)[1].lower()
+    if ext not in ['.pdf', '.jpg', '.jpeg', '.png', '.webp']:
+        raise ValidationError("Extensión de archivo no permitida.")
+
+    # 3. Magic bytes sniffing
+    header = file_obj.read(2048)
+    file_obj.seek(0) # CRITICAL: seek back to 0 so the file is not written truncated!
+
+    content_type = None
+    if header.startswith(b'%PDF'):
+        content_type = 'application/pdf'
+    elif header.startswith(b'\x89PNG\r\n\x1a\n') or header.startswith(b'\x89PNG'):
+        content_type = 'image/png'
+    elif header.startswith(b'\xff\xd8\xff'):
+        content_type = 'image/jpeg'
+    elif header.startswith(b'RIFF') and len(header) >= 12 and header[8:12] == b'WEBP':
+        content_type = 'image/webp'
+
+    if not content_type:
+        raise ValidationError("Tipo de archivo no permitido. Solo se permiten imágenes (JPG, PNG, WEBP) y PDF.")
+
+    return content_type
+
+
+@login_required
+@require_POST
+def subir_adjunto_view(request, ticket_id):
+    ticket = get_object_or_404(Ticket, pk=ticket_id)
+    
+    # Permission rule: related user (es_gestor_o_autor)
+    if not es_gestor_o_autor(request.user, ticket):
+        return HttpResponseForbidden("No tienes permisos para subir archivos a este ticket.")
+        
+    archivo_file = request.FILES.get('archivo')
+    if not archivo_file:
+        messages.error(request, "No se seleccionó ningún archivo.")
+        return redirect('ticket_detail', ticket_id=ticket.id)
+        
+    try:
+        # Validate file size and content type by magic bytes
+        detected_ct = validar_archivo_adjunto(archivo_file)
+        
+        # Save Adjunto
+        adjunto = Adjunto.objects.create(
+            ticket=ticket,
+            archivo=archivo_file,
+            nombre_original=archivo_file.name,
+            content_type=detected_ct,
+            tamano=archivo_file.size,
+            subido_por=request.user
+        )
+        messages.success(request, f"Archivo '{adjunto.nombre_original}' subido exitosamente.")
+    except ValidationError as e:
+        messages.error(request, e.message)
+    except Exception as e:
+        messages.error(request, f"Error al subir el archivo: {str(e)}")
+        
+    return redirect('ticket_detail', ticket_id=ticket.id)
+
+
+@login_required
+def descargar_adjunto_view(request, adjunto_id):
+    adjunto = get_object_or_404(Adjunto, pk=adjunto_id)
+    
+    # Permission rule: can view the ticket (puede_ver_ticket)
+    if not puede_ver_ticket(request.user, adjunto.ticket):
+        return HttpResponseForbidden("No tienes permisos para descargar este archivo.")
+        
+    # FileResponse automatically sets Content-Disposition as attachment with secure escaping
+    response = FileResponse(adjunto.archivo, as_attachment=True, filename=adjunto.nombre_original)
+    
+    # Set the detected content type (or application/octet-stream fallback)
+    response['Content-Type'] = adjunto.content_type or 'application/octet-stream'
+    # Security header to prevent content sniffing
+    response['X-Content-Type-Options'] = 'nosniff'
+    
+    return response
+
 
 

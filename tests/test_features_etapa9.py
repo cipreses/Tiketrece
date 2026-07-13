@@ -1,4 +1,5 @@
 import pytest
+import os
 import csv
 from django.urls import reverse
 from django.core.exceptions import PermissionDenied
@@ -430,4 +431,152 @@ class TestNotifications:
         # Confirm it remains unread in database
         notif.refresh_from_db()
         assert notif.leida is False
+
+
+from django.core.files.uploadedfile import SimpleUploadedFile
+
+@pytest.mark.django_db
+class TestAttachments:
+
+    @pytest.fixture(autouse=True)
+    def temp_media(self, settings, tmp_path):
+        settings.MEDIA_ROOT = str(tmp_path)
+        settings.MEDIA_URL = '/media/'
+
+    def test_attachment_upload_permission_scope(self, init_data, client):
+        """
+        Verify that a related user can upload files but an unrelated user is blocked (403).
+        """
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI"
+        )
+        
+        # Valid PNG file content
+        valid_png = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01'
+        png_file = SimpleUploadedFile("test.png", valid_png, content_type="image/png")
+        
+        # Unrelated user (solic2) attempts to upload to solic1's ticket
+        client.force_login(init_data['solic2'])
+        response = client.post(reverse('subir_adjunto', args=[ticket.id]), {'archivo': png_file})
+        assert response.status_code == 403
+        assert ticket.adjuntos.count() == 0
+        
+        # Related user (solic1 - author) uploads to their own ticket
+        png_file.seek(0)
+        client.force_login(init_data['solic1'])
+        response2 = client.post(reverse('subir_adjunto', args=[ticket.id]), {'archivo': png_file})
+        assert response2.status_code == 302 # Redirects on success
+        assert ticket.adjuntos.count() == 1
+
+    def test_file_format_and_magic_bytes_validation(self, init_data, client):
+        """
+        Verify that files not matching whitelisted formats or with mismatched magic bytes are rejected.
+        """
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI"
+        )
+        client.force_login(init_data['solic1'])
+        
+        # 1. Reject SVG file (XSS prevention)
+        svg_content = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+        svg_file = SimpleUploadedFile("xss.svg", svg_content, content_type="image/svg+xml")
+        client.post(reverse('subir_adjunto', args=[ticket.id]), {'archivo': svg_file})
+        assert ticket.adjuntos.count() == 0 # Blocked
+        
+        # 2. Reject mismatched magic bytes (HTML disguised as PNG)
+        fake_png = b'<html><body>Fake PNG</body></html>'
+        fake_png_file = SimpleUploadedFile("disguised.png", fake_png, content_type="image/png")
+        client.post(reverse('subir_adjunto', args=[ticket.id]), {'archivo': fake_png_file})
+        assert ticket.adjuntos.count() == 0 # Blocked
+        
+        # 3. Reject forbidden extension even if magic bytes match (.exe extension)
+        valid_png = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01'
+        malicious_exe = SimpleUploadedFile("malware.exe", valid_png, content_type="image/png")
+        client.post(reverse('subir_adjunto', args=[ticket.id]), {'archivo': malicious_exe})
+        assert ticket.adjuntos.count() == 0 # Blocked
+
+    def test_file_size_exceeded_rejection(self, init_data, client):
+        """
+        Verify that files exceeding the 10 MB limit are rejected.
+        """
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI"
+        )
+        client.force_login(init_data['solic1'])
+        
+        # Create a large dummy file > 10 MB with valid PDF header
+        large_content = b'%PDF-1.4\n' + b'0' * (10 * 1024 * 1024 + 100)
+        large_file = SimpleUploadedFile("large.pdf", large_content, content_type="application/pdf")
+        
+        client.post(reverse('subir_adjunto', args=[ticket.id]), {'archivo': large_file})
+        assert ticket.adjuntos.count() == 0 # Blocked
+
+    def test_secure_download_and_idor_block(self, init_data, client):
+        """
+        Verify secure download: requires login, enforces scope (IDOR block), returns nosniff,
+        and uses attachment disposition. Also test direct /media/ path returns 404.
+        """
+        from tickets.models import Adjunto
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI"
+        )
+        
+        valid_png = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01'
+        png_file = SimpleUploadedFile("safe.png", valid_png, content_type="image/png")
+        
+        # Upload
+        client.force_login(init_data['solic1'])
+        client.post(reverse('subir_adjunto', args=[ticket.id]), {'archivo': png_file})
+        adjunto = ticket.adjuntos.first()
+        assert adjunto is not None
+        
+        # 1. Unrelated user (solic2) attempts to download
+        client.force_login(init_data['solic2'])
+        response = client.get(reverse('descargar_adjunto', args=[adjunto.id]))
+        assert response.status_code == 403
+        
+        # 2. Author (solic1) downloads (happy path check)
+        client.force_login(init_data['solic1'])
+        response2 = client.get(reverse('descargar_adjunto', args=[adjunto.id]))
+        assert response2.status_code == 200
+        
+        # Compare bytes: happy path byte-by-byte check
+        downloaded_bytes = b"".join(response2.streaming_content)
+        assert downloaded_bytes == valid_png
+        
+        # Verify headers
+        assert response2['X-Content-Type-Options'] == 'nosniff'
+        assert response2['Content-Type'] == 'image/png'
+        assert 'attachment;' in response2['Content-Disposition']
+        assert 'filename="safe.png"' in response2['Content-Disposition']
+        
+        # 3. Direct MEDIA_URL access check (must return 404)
+        direct_url = f"/media/{adjunto.archivo.name}"
+        response3 = client.get(direct_url)
+        assert response3.status_code == 404
+
+    def test_path_traversal_neutralization(self, init_data, client):
+        """
+        Verify that attempts at path traversal via filenames are neutralized (UUID saved file).
+        """
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI"
+        )
+        
+        valid_png = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01'
+        traversal_file = SimpleUploadedFile("../../../evil.png", valid_png, content_type="image/png")
+        
+        client.force_login(init_data['solic1'])
+        client.post(reverse('subir_adjunto', args=[ticket.id]), {'archivo': traversal_file})
+        
+        adjunto = ticket.adjuntos.first()
+        assert adjunto is not None
+        assert ".." not in adjunto.nombre_original
+        
+        # Path on disk should be inside the tickets directory under a safe UUID
+        filename = os.path.basename(adjunto.archivo.name)
+        assert ".." not in adjunto.archivo.name
+        assert filename != "evil.png"
+        assert len(filename) >= 36 # UUID4 length is 36
+
 

@@ -107,3 +107,33 @@ class Notificacion(models.Model):
     def __str__(self):
         return f"Notificación ({self.tipo}) para {self.destinatario.email} - Leída: {self.leida}"
 
+
+import os
+import uuid
+
+def ticket_attachment_path(instance, filename):
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ['.pdf', '.jpg', '.jpeg', '.png', '.webp']:
+        ext = ''
+    safe_name = f"{uuid.uuid4()}{ext}"
+    return f"tickets/ticket_{instance.ticket.id}/{safe_name}"
+
+
+class Adjunto(models.Model):
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='adjuntos')
+    archivo = models.FileField(upload_to=ticket_attachment_path)
+    nombre_original = models.TextField()
+    content_type = models.CharField(max_length=100)
+    tamano = models.IntegerField()
+    subido_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='adjuntos_subidos')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['creado_en']
+        verbose_name = 'Archivo Adjunto'
+        verbose_name_plural = 'Archivos Adjuntos'
+
+    def __str__(self):
+        return f"Adjunto {self.nombre_original} en ticket #{self.ticket.id}"
+
+
