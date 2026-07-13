@@ -224,14 +224,31 @@
                 <form action="{% url 'subir_adjunto' ticket.id %}" method="post" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 0.75rem;">
                     {% csrf_token %}
                     <div class="form-group" style="margin: 0;">
-                        <label for="archivo_input" style="font-size: 0.8rem; margin-bottom: 0.25rem;">Subir nuevo archivo (Máx. 10 MB, PDF o Imágenes):</label>
-                        <input type="file" name="archivo" id="archivo_input" class="form-control" style="font-size: 0.8rem; padding: 0.25rem;" required>
+                        <label style="font-size: 0.8rem; margin-bottom: 0.25rem;">Subir nuevo archivo (Máx. 10 MB, PDF o Imágenes):</label>
+                        <div class="custom-file-upload">
+                            <input type="file" name="archivo" id="archivo_input" class="form-control file-input-hidden" required>
+                            <label for="archivo_input" class="btn btn-secondary custom-file-label" style="font-size: 0.85rem; padding: 0.5rem 1rem;">
+                                <span>📁 Elegir archivo</span>
+                            </label>
+                            <span id="single-file-status" class="file-upload-status" style="font-size: 0.8rem;">Sin archivos seleccionados</span>
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-primary" style="padding: 0.4rem; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 0.25rem;">
                         📤 Subir Adjunto
                     </button>
                 </form>
             </div>
+            <script>
+                document.getElementById('archivo_input').addEventListener('change', function(e) {
+                    const statusSpan = document.getElementById('single-file-status');
+                    const files = e.target.files;
+                    if (files.length === 0) {
+                        statusSpan.textContent = 'Sin archivos seleccionados';
+                    } else {
+                        statusSpan.textContent = `1 archivo: ${files[0].name}`;
+                    }
+                });
+            </script>
             {% endif %}
         </div>
         

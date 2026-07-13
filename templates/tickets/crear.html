@@ -52,11 +52,30 @@
         </div>
         
         <div class="form-group">
-            <label for="archivos_input">📎 Adjuntar Archivos (Opcional):</label>
-            <input type="file" name="archivos" id="archivos_input" class="form-control" style="font-size: 0.85rem;" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" multiple>
+            <label>📎 Adjuntar Archivos (Opcional):</label>
+            <div class="custom-file-upload">
+                <input type="file" name="archivos" id="archivos_input" class="form-control file-input-hidden" style="font-size: 0.85rem;" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" multiple>
+                <label for="archivos_input" class="btn btn-secondary custom-file-label">
+                    <span>📁 Elegir archivo(s)</span>
+                </label>
+                <span id="file-upload-status" class="file-upload-status">Sin archivos seleccionados</span>
+            </div>
             <small style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
                 Formatos permitidos: JPG, PNG, WEBP, PDF. Límite de 10 MB por archivo. Máximo 5 archivos.
             </small>
+            <script>
+                document.getElementById('archivos_input').addEventListener('change', function(e) {
+                    const statusSpan = document.getElementById('file-upload-status');
+                    const files = e.target.files;
+                    if (files.length === 0) {
+                        statusSpan.textContent = 'Sin archivos seleccionados';
+                    } else if (files.length === 1) {
+                        statusSpan.textContent = `1 archivo: ${files[0].name}`;
+                    } else {
+                        statusSpan.textContent = `${files.length} archivos seleccionados`;
+                    }
+                });
+            </script>
         </div>
         
         <div style="display: flex; gap: 1rem; margin-top: 1rem; justify-content: flex-end;">

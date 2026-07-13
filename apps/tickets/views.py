@@ -86,7 +86,7 @@ def tickets_list_view(request):
     
     # If request is HTMX, render only the partial table body
     if request.headers.get('HX-Request'):
-        return render(request, 'tickets/partials/ticket_rows.html', {'tickets': tickets})
+        return render(request, 'tickets/partials/ticket_rows.html', {'tickets': tickets, 'is_htmx': True})
         
     return render(request, 'tickets/list.html', {
         'tickets': tickets,
