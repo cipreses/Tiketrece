@@ -281,3 +281,153 @@ class TestUISmokeAndPermissions:
         # Estado: cerrado -> Author can reopen it (return True)
         ticket.estado = 'cerrado'
         assert puede_cambiar_estado(init_data['solic1'], ticket) is True
+
+
+@pytest.mark.django_db
+class TestNotifications:
+
+    def test_notification_creation_and_actor_exclusion(self, init_data):
+        """
+        Verify that notifications are created for the correct active recipients (author + sector agents)
+        and that the actor who performs the change is excluded (no self-notification).
+        """
+        from tickets.models import Notificacion
+        from tickets.services import cambiar_prioridad
+        
+        # Create a ticket owned by solic1
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Test Notif", prioridad="baja"
+        )
+        
+        # Action performed by agent_user (who belongs to sec_ti)
+        # Author: solic1, Agent: agent_user
+        # Expect notification created only for solic1 (since agent_user is actor)
+        cambiar_prioridad(ticket, "alta", init_data['agent_user'])
+        
+        notifs = Notificacion.objects.all()
+        assert notifs.count() == 1
+        assert notifs[0].destinatario == init_data['solic1']
+        assert notifs[0].tipo == 'prioridad'
+        
+        # Action performed by solic1 (author)
+        # Expect notification created only for agent_user (since solic1 is actor)
+        from tickets.services import agregar_comentario
+        agregar_comentario(ticket, init_data['solic1'], "Hola agentes!")
+        
+        # Total notifications should now be 2
+        notifs = Notificacion.objects.all()
+        assert notifs.count() == 2
+        
+        # The latest notification must be for the agent_user
+        latest_notif = Notificacion.objects.filter(tipo='comentario').first()
+        assert latest_notif is not None
+        assert latest_notif.destinatario == init_data['agent_user']
+
+    def test_derivation_notifies_both_sectors_agents(self, init_data):
+        """
+        Verify that derivation/reasignation notifies agents of both the origin and destination sectors
+        plus the author, while excluding the actor.
+        """
+        from tickets.models import Notificacion
+        from tickets.services import derivar_ticket
+        
+        # Create another agent for maint sector
+        maint_agent = Usuario.objects.create(
+            username="maint@13dejulio.edu.ar",
+            email="maint@13dejulio.edu.ar",
+            google_sub="sub-maint-agent",
+            rol="agente"
+        )
+        maint_agent.sectores.add(init_data['sec_maint'])
+        
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Test Deriv"
+        )
+        
+        # Derivation performed by dir_user (who belongs to no sector)
+        # Recipients expected: author (solic1) + origin agents (agent_user) + destination agents (maint_agent)
+        # Excluding actor (dir_user)
+        derivar_ticket(ticket, init_data['sec_maint'], init_data['dir_user'])
+        
+        notifs = Notificacion.objects.all()
+        # 3 notifications should be created
+        assert notifs.count() == 3
+        
+        destinatarios = [n.destinatario for n in notifs]
+        assert init_data['solic1'] in destinatarios
+        assert init_data['agent_user'] in destinatarios
+        assert maint_agent in destinatarios
+        assert init_data['dir_user'] not in destinatarios
+
+    def test_unrelated_agent_does_not_receive_notification(self, init_data):
+        """
+        Verify that an agent from an unrelated sector does NOT receive notifications.
+        """
+        from tickets.models import Notificacion
+        from tickets.services import cambiar_prioridad
+        
+        # Create a ticket in Maintenance sector
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_maint'], titulo="Maint Ticket"
+        )
+        
+        # agent_user belongs to TI sector (unrelated)
+        # Action performed by dir_user
+        # Expect notification only for solic1 (author). agent_user should not get one.
+        cambiar_prioridad(ticket, "alta", init_data['dir_user'])
+        
+        notifs = Notificacion.objects.filter(destinatario=init_data['agent_user'])
+        assert notifs.count() == 0
+
+    def test_notifications_scope_and_unread_count(self, init_data, client):
+        """
+        Verify that a user only sees/counts their own notifications.
+        """
+        from tickets.models import Notificacion
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Test"
+        )
+        # Create 2 unread notifications for solic1
+        Notificacion.objects.create(destinatario=init_data['solic1'], ticket=ticket, tipo="estado", mensaje="Msg 1")
+        Notificacion.objects.create(destinatario=init_data['solic1'], ticket=ticket, tipo="estado", mensaje="Msg 2")
+        
+        # Create 1 unread notification for solic2
+        Notificacion.objects.create(destinatario=init_data['solic2'], ticket=ticket, tipo="estado", mensaje="Msg 3")
+        
+        # Login as solic1
+        client.force_login(init_data['solic1'])
+        response = client.get(reverse('notificaciones_dropdown'))
+        assert response.status_code == 200
+        
+        # solic1 should only count 2 unread notifications
+        assert response.context['unread_count'] == 2
+        notifs_in_context = response.context['notificaciones']
+        assert notifs_in_context.count() == 2
+        for n in notifs_in_context:
+            assert n.destinatario == init_data['solic1']
+
+    def test_idor_prevented_on_mark_as_read(self, init_data, client):
+        """
+        Verify that a user cannot mark another user's notification as read (returns 404).
+        """
+        from tickets.models import Notificacion
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Test"
+        )
+        
+        # Notification owned by solic2
+        notif = Notificacion.objects.create(
+            destinatario=init_data['solic2'], ticket=ticket, tipo="estado", mensaje="Msg"
+        )
+        
+        # Login as solic1
+        client.force_login(init_data['solic1'])
+        
+        # Attempt to mark solic2's notification as read
+        response = client.post(reverse('marcar_leida_notificacion', args=[notif.id]))
+        assert response.status_code == 404
+        
+        # Confirm it remains unread in database
+        notif.refresh_from_db()
+        assert notif.leida is False
+

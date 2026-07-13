@@ -1,0 +1,38 @@
+<div class="notification-bell-widget" id="notification-bell-widget" style="position: relative;">
+  <button class="bell-btn" onclick="document.getElementById('notif-dropdown').classList.toggle('show'); event.stopPropagation();" title="Notificaciones">
+      🔔
+      {% if unread_count > 0 %}
+      <span class="unread-badge">{{ unread_count }}</span>
+      {% endif %}
+  </button>
+  
+  <div class="notif-dropdown-content" id="notif-dropdown" onclick="event.stopPropagation();">
+      <div class="notif-header">
+          <span class="notif-title">Notificaciones</span>
+          {% if unread_count > 0 %}
+          <button class="btn-text" hx-post="{% url 'marcar_todas_notificaciones' %}" hx-target="#notification-bell-widget" hx-swap="outerHTML">
+              Marcar todas
+          </button>
+          {% endif %}
+      </div>
+      <div class="notif-body">
+          {% for n in notificaciones %}
+          <div class="notif-item {% if not n.leida %}unread{% endif %}">
+              <div style="flex-grow: 1; padding-right: 0.5rem;">
+                  <a href="{% url 'ticket_detail' n.ticket.id %}" class="notif-link" hx-boost="false">
+                      <p class="notif-msg">{{ n.mensaje }}</p>
+                      <span class="notif-time">{{ n.creado_en|timesince }} atrás</span>
+                  </a>
+              </div>
+              {% if not n.leida %}
+              <button class="mark-read-btn" hx-post="{% url 'marcar_leida_notificacion' n.id %}" hx-target="#notification-bell-widget" hx-swap="outerHTML" title="Marcar como leída">
+                  ✓
+              </button>
+              {% endif %}
+          </div>
+          {% empty %}
+          <div class="notif-empty">No tienes notificaciones.</div>
+          {% endfor %}
+      </div>
+  </div>
+</div>

@@ -72,6 +72,15 @@
         
         <!-- Main Panel Content -->
         <main class="main-content">
+            <!-- Topbar with Notification Bell -->
+            {% if user.is_authenticated %}
+            <header class="main-topbar" style="display: flex; justify-content: flex-end; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; position: relative; z-index: 10;">
+                <div id="notification-bell-widget" hx-get="{% url 'notificaciones_dropdown' %}" hx-trigger="load" hx-swap="outerHTML">
+                    <!-- Cargando notificaciones... -->
+                </div>
+            </header>
+            {% endif %}
+
             <!-- Messages Banner -->
             {% if messages %}
             <div class="messages-container">
@@ -87,6 +96,15 @@
         </main>
     </div>
     
+    <script>
+        // Dismiss notification dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            var dropdown = document.getElementById('notif-dropdown');
+            if (dropdown && dropdown.classList.contains('show')) {
+                dropdown.classList.remove('show');
+            }
+        });
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

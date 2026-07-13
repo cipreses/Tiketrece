@@ -6,7 +6,7 @@ from django.http import HttpResponseForbidden, HttpResponse, Http404
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Q, Case, When, Value, IntegerField
 from sectores.models import Sector
-from tickets.models import Ticket, Comentario, HistorialTicket
+from tickets.models import Ticket, Comentario, HistorialTicket, Notificacion
 from tickets.permissions import (
     obtener_tickets_visibles,
     puede_ver_ticket,
@@ -335,4 +335,37 @@ def export_tickets_csv_view(request):
     response = StreamingHttpResponse(csv_rows(), content_type="text/csv; charset=utf-8")
     response['Content-Disposition'] = 'attachment; filename="tickets_export.csv"'
     return response
+
+
+@login_required
+def notificaciones_dropdown_view(request):
+    notificaciones = Notificacion.objects.filter(destinatario=request.user)[:10]
+    unread_count = Notificacion.objects.filter(destinatario=request.user, leida=False).count()
+    return render(request, 'tickets/partials/notification_dropdown.html', {
+        'notificaciones': notificaciones,
+        'unread_count': unread_count
+    })
+
+
+@login_required
+@require_POST
+def marcar_leida_notificacion_view(request, notif_id):
+    # IDOR check: verify the notification belongs to request.user
+    try:
+        notificacion = Notificacion.objects.get(pk=notif_id, destinatario=request.user)
+    except Notificacion.DoesNotExist:
+        raise Http404("Notificación no encontrada.")
+        
+    notificacion.leida = True
+    notificacion.save()
+    
+    return notificaciones_dropdown_view(request)
+
+
+@login_required
+@require_POST
+def marcar_todas_notificaciones_view(request):
+    Notificacion.objects.filter(destinatario=request.user, leida=False).update(leida=True)
+    return notificaciones_dropdown_view(request)
+
 

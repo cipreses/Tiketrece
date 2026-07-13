@@ -82,3 +82,28 @@ class HistorialTicket(models.Model):
 
     def __str__(self):
         return f"Cambio {self.tipo} en #{self.ticket.id} por {self.actor}"
+
+
+class Notificacion(models.Model):
+    TIPOS = [
+        ('estado', 'Estado'),
+        ('prioridad', 'Prioridad'),
+        ('sector', 'Sector'),
+        ('comentario', 'Comentario'),
+    ]
+
+    destinatario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notificaciones')
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='notificaciones')
+    tipo = models.CharField(max_length=15, choices=TIPOS)
+    mensaje = models.TextField()
+    leida = models.BooleanField(default=False)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creado_en']
+        verbose_name = 'Notificación'
+        verbose_name_plural = 'Notificaciones'
+
+    def __str__(self):
+        return f"Notificación ({self.tipo}) para {self.destinatario.email} - Leída: {self.leida}"
+

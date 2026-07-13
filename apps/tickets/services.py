@@ -1,8 +1,46 @@
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from .models import Ticket, Comentario, HistorialTicket
+from .models import Ticket, Comentario, HistorialTicket, Notificacion
 from .permissions import es_gestor_o_autor
+
+def create_notifications(ticket, actor, tipo, mensaje, origin_sector=None, dest_sector=None):
+    """
+    Creates notifications in bulk for relevant active users (author + agents of origin/destination sectors)
+    excluding the actor performing the change to prevent self-notification.
+    """
+    if not origin_sector:
+        origin_sector = ticket.sector
+
+    recipients = set()
+
+    # 1. Ticket author (if active)
+    if ticket.autor.is_active:
+        recipients.add(ticket.autor)
+
+    # 2. Origin sector agents (must be active and have agente role)
+    for agent in origin_sector.agentes.filter(rol='agente', is_active=True):
+        recipients.add(agent)
+
+    # 3. Destination sector agents (must be active and specified)
+    if dest_sector:
+        for agent in dest_sector.agentes.filter(rol='agente', is_active=True):
+            recipients.add(agent)
+
+    # 4. Exclude the actor of the change (no self-notification)
+    recipients.discard(actor)
+
+    # Bulk create Notificacion objects
+    notifications_to_create = []
+    for r in recipients:
+        notifications_to_create.append(Notificacion(
+            destinatario=r,
+            ticket=ticket,
+            tipo=tipo,
+            mensaje=mensaje
+        ))
+    if notifications_to_create:
+        Notificacion.objects.bulk_create(notifications_to_create)
 
 @transaction.atomic
 def crear_ticket(autor, sector, prioridad, titulo, descripcion):
@@ -70,6 +108,11 @@ def cambiar_estado(ticket, nuevo_estado, actor):
         valor_anterior=old_estado,
         valor_nuevo=nuevo_estado
     )
+
+    # Generate Notification
+    mensaje = f"El estado del ticket #{ticket.id} cambió a '{nuevo_estado}'."
+    create_notifications(ticket, actor, 'estado', mensaje)
+
     return ticket
 
 @transaction.atomic
@@ -101,6 +144,11 @@ def cambiar_prioridad(ticket, nueva_prioridad, actor):
         valor_anterior=old_prioridad,
         valor_nuevo=nueva_prioridad
     )
+
+    # Generate Notification
+    mensaje = f"La prioridad del ticket #{ticket.id} cambió a '{nueva_prioridad}'."
+    create_notifications(ticket, actor, 'prioridad', mensaje)
+
     return ticket
 
 @transaction.atomic
@@ -120,6 +168,7 @@ def derivar_ticket(ticket, nuevo_sector, actor):
         else:
             raise ValidationError("No tienes permisos para derivar este ticket.")
 
+    # Apply change
     ticket.sector = nuevo_sector
     ticket.derivado_desde_sector = old_sector
     ticket.save()
@@ -132,6 +181,11 @@ def derivar_ticket(ticket, nuevo_sector, actor):
         valor_anterior=old_sector.nombre,
         valor_nuevo=nuevo_sector.nombre
     )
+
+    # Generate Notification
+    mensaje = f"El ticket #{ticket.id} fue derivado al sector '{nuevo_sector.nombre}'."
+    create_notifications(ticket, actor, 'sector', mensaje, origin_sector=old_sector, dest_sector=nuevo_sector)
+
     return ticket
 
 @transaction.atomic
@@ -150,6 +204,7 @@ def reasignar_sector(ticket, nuevo_sector, actor):
     if not (actor.rol == 'directivo' or actor.es_superadmin):
         raise ValidationError("Solo un directivo puede reasignar un ticket de forma administrativa.")
 
+    # Apply change
     ticket.sector = nuevo_sector
     ticket.derivado_desde_sector = old_sector
     ticket.save()
@@ -162,6 +217,11 @@ def reasignar_sector(ticket, nuevo_sector, actor):
         valor_anterior=old_sector.nombre,
         valor_nuevo=nuevo_sector.nombre
     )
+
+    # Generate Notification
+    mensaje = f"El ticket #{ticket.id} fue reasignado al sector '{nuevo_sector.nombre}' por un directivo."
+    create_notifications(ticket, actor, 'sector', mensaje, origin_sector=old_sector, dest_sector=nuevo_sector)
+
     return ticket
 
 @transaction.atomic
@@ -178,4 +238,9 @@ def agregar_comentario(ticket, autor, texto):
         autor=autor,
         texto=texto
     )
+
+    # Generate Notification
+    mensaje = f"Nuevo comentario de {autor.first_name or autor.email} en el ticket #{ticket.id}."
+    create_notifications(ticket, autor, 'comentario', mensaje)
+
     return comentario
