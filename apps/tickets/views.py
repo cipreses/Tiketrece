@@ -149,32 +149,69 @@ def ticket_detail_view(request, ticket_id):
     
     return render(request, 'tickets/detail.html', context)
 
+from django.db import transaction
+
 @login_required
 def crear_ticket_view(request):
+    sectores = Sector.objects.filter(activo=True)
+    
     if request.method == 'POST':
         sector_id = request.POST.get('sector_id')
         prioridad = request.POST.get('prioridad')
         titulo = request.POST.get('titulo', '').strip()
         descripcion = request.POST.get('descripcion', '').strip()
         
+        # Read attachments
+        archivos = request.FILES.getlist('archivos')
+        
         sector = get_object_or_404(Sector, pk=sector_id)
         
         try:
-            ticket = crear_ticket(
-                autor=request.user,
-                sector=sector,
-                prioridad=prioridad,
-                titulo=titulo,
-                descripcion=descripcion
-            )
+            # 1. Limit check: max 5 files
+            if len(archivos) > 5:
+                raise ValidationError("No puedes subir más de 5 archivos adjuntos al crear un ticket.")
+                
+            # 2. Pre-validate ALL files (magic bytes, size, extensions)
+            for f in archivos:
+                validar_archivo_adjunto(f)
+                
+            # 3. Create ticket and save attachments atomically
+            with transaction.atomic():
+                ticket = crear_ticket(
+                    autor=request.user,
+                    sector=sector,
+                    prioridad=prioridad,
+                    titulo=titulo,
+                    descripcion=descripcion
+                )
+                for f in archivos:
+                    guardar_adjunto(ticket, f, request.user)
+                    
             messages.success(request, f"Ticket #{ticket.id} creado exitosamente.")
             return redirect('ticket_detail', ticket_id=ticket.id)
+            
         except ValidationError as e:
             messages.error(request, e.message)
+            # Re-render with existing fields prepopulated
+            return render(request, 'tickets/crear.html', {
+                'sectores': sectores,
+                'prioridades': Ticket.PRIORIDADES,
+                'f_sector_id': sector_id,
+                'f_prioridad': prioridad,
+                'f_titulo': titulo,
+                'f_descripcion': descripcion
+            })
         except Exception as e:
             messages.error(request, f"Error al crear ticket: {str(e)}")
+            return render(request, 'tickets/crear.html', {
+                'sectores': sectores,
+                'prioridades': Ticket.PRIORIDADES,
+                'f_sector_id': sector_id,
+                'f_prioridad': prioridad,
+                'f_titulo': titulo,
+                'f_descripcion': descripcion
+            })
             
-    sectores = Sector.objects.filter(activo=True)
     return render(request, 'tickets/crear.html', {
         'sectores': sectores,
         'prioridades': Ticket.PRIORIDADES
@@ -406,6 +443,23 @@ def validar_archivo_adjunto(file_obj):
     return content_type
 
 
+def guardar_adjunto(ticket, file_obj, usuario):
+    """
+    Validates file_obj using the magic bytes validation, and creates the Adjunto
+    instance associated with the ticket.
+    """
+    detected_ct = validar_archivo_adjunto(file_obj)
+    adjunto = Adjunto.objects.create(
+        ticket=ticket,
+        archivo=file_obj,
+        nombre_original=file_obj.name,
+        content_type=detected_ct,
+        tamano=file_obj.size,
+        subido_por=usuario
+    )
+    return adjunto
+
+
 @login_required
 @require_POST
 def subir_adjunto_view(request, ticket_id):
@@ -421,18 +475,7 @@ def subir_adjunto_view(request, ticket_id):
         return redirect('ticket_detail', ticket_id=ticket.id)
         
     try:
-        # Validate file size and content type by magic bytes
-        detected_ct = validar_archivo_adjunto(archivo_file)
-        
-        # Save Adjunto
-        adjunto = Adjunto.objects.create(
-            ticket=ticket,
-            archivo=archivo_file,
-            nombre_original=archivo_file.name,
-            content_type=detected_ct,
-            tamano=archivo_file.size,
-            subido_por=request.user
-        )
+        adjunto = guardar_adjunto(ticket, archivo_file, request.user)
         messages.success(request, f"Archivo '{adjunto.nombre_original}' subido exitosamente.")
     except ValidationError as e:
         messages.error(request, e.message)

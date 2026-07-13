@@ -606,5 +606,118 @@ class TestAttachments:
         # Verify the file actually exists on the filesystem in that location
         assert os.path.exists(file_path_on_disk)
 
+    def test_create_ticket_with_multiple_valid_attachments(self, init_data, client, settings):
+        """
+        Verify that creating a ticket with multiple valid attachments creates the ticket
+        and all attachments, and stores them under MEDIA_ROOT.
+        """
+        valid_png = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01'
+        valid_pdf = b'%PDF-1.4\n%EOF'
+        
+        file1 = SimpleUploadedFile("pic.png", valid_png, content_type="image/png")
+        file2 = SimpleUploadedFile("doc.pdf", valid_pdf, content_type="application/pdf")
+        
+        client.force_login(init_data['solic1'])
+        
+        post_data = {
+            'sector_id': init_data['sec_ti'].id,
+            'prioridad': 'media',
+            'titulo': 'Ticket con archivos',
+            'descripcion': 'Falla reportada con capturas',
+            'archivos': [file1, file2]
+        }
+        
+        response = client.post(reverse('crear_ticket'), post_data)
+        assert response.status_code == 302 # Redirect on success
+        
+        # Verify ticket and attachments were created
+        ticket = Ticket.objects.get(titulo='Ticket con archivos')
+        assert ticket.adjuntos.count() == 2
+        
+        for adj in ticket.adjuntos.all():
+            assert adj.subido_por == init_data['solic1']
+            assert adj.archivo.path.startswith(settings.MEDIA_ROOT)
+            assert os.path.exists(adj.archivo.path)
+
+    def test_create_ticket_with_invalid_attachment_rolls_back_everything(self, init_data, client):
+        """
+        Verify that if any of the attached files is invalid, no ticket is created
+        and no attachments are saved in database (atomic rollback).
+        """
+        valid_png = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01'
+        fake_png = b'<html>Fake</html>' # Mismatched magic bytes
+        
+        file1 = SimpleUploadedFile("ok.png", valid_png, content_type="image/png")
+        file2 = SimpleUploadedFile("fake.png", fake_png, content_type="image/png")
+        
+        client.force_login(init_data['solic1'])
+        
+        tickets_count_before = Ticket.objects.count()
+        
+        post_data = {
+            'sector_id': init_data['sec_ti'].id,
+            'prioridad': 'media',
+            'titulo': 'Ticket Fallido',
+            'descripcion': 'Falla atómica',
+            'archivos': [file1, file2]
+        }
+        
+        response = client.post(reverse('crear_ticket'), post_data)
+        assert response.status_code == 200 # Re-renders page on error
+        
+        # Verify no new tickets were created
+        assert Ticket.objects.count() == tickets_count_before
+        
+        # Confirm no attachments exist for 'Ticket Fallido'
+        from tickets.models import Adjunto
+        assert Adjunto.objects.filter(nombre_original="ok.png").count() == 0
+
+    def test_create_ticket_without_attachments_succeeds(self, init_data, client):
+        """
+        Verify that creating a ticket without files is optional and succeeds.
+        """
+        client.force_login(init_data['solic1'])
+        
+        post_data = {
+            'sector_id': init_data['sec_ti'].id,
+            'prioridad': 'media',
+            'titulo': 'Ticket limpio',
+            'descripcion': 'Sin adjuntos'
+        }
+        
+        response = client.post(reverse('crear_ticket'), post_data)
+        assert response.status_code == 302
+        
+        ticket = Ticket.objects.get(titulo='Ticket limpio')
+        assert ticket.adjuntos.count() == 0
+
+    def test_create_ticket_exceeds_max_files_limit(self, init_data, client):
+        """
+        Verify that attempting to attach more than 5 files blocks ticket creation.
+        """
+        valid_png = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01'
+        files = [
+            SimpleUploadedFile(f"file{i}.png", valid_png, content_type="image/png")
+            for i in range(6)
+        ]
+        
+        client.force_login(init_data['solic1'])
+        tickets_count_before = Ticket.objects.count()
+        
+        post_data = {
+            'sector_id': init_data['sec_ti'].id,
+            'prioridad': 'media',
+            'titulo': 'Ticket saturado',
+            'descripcion': 'Demasiados adjuntos',
+            'archivos': files
+        }
+        
+        response = client.post(reverse('crear_ticket'), post_data)
+        assert response.status_code == 200 # Re-renders creating page
+        
+        # Verify ticket was blocked
+        assert Ticket.objects.count() == tickets_count_before
+
+
 
 
