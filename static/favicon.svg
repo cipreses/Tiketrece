@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="ticketGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+  </defs>
+  <!-- Ticket body with semicircular cuts on left and right sides -->
+  <path d="M48,128 C48,92.65 76.65,64 112,64 L400,64 C435.35,64 464,92.65 464,128 C464,160 440,192 440,256 C440,320 464,352 464,384 C464,419.35 435.35,448 400,448 L112,448 C76.65,448 48,419.35 48,384 C48,352 72,320 72,256 C72,192 48,160 48,128 Z" fill="url(#ticketGrad)" />
+  <!-- Ticket dashed line separator -->
+  <line x1="160" y1="112" x2="160" y2="400" stroke="#78350f" stroke-width="20" stroke-linecap="round" stroke-dasharray="1 30" opacity="0.3" />
+  <!-- Punch holes design -->
+  <circle cx="280" cy="256" r="32" fill="#78350f" opacity="0.25" />
+  <circle cx="360" cy="256" r="32" fill="#78350f" opacity="0.25" />
+</svg>
