@@ -579,4 +579,32 @@ class TestAttachments:
         assert filename != "evil.png"
         assert len(filename) >= 36 # UUID4 length is 36
 
+    def test_uploaded_attachment_saved_under_media_root(self, init_data, client, settings):
+        """
+        Verify that an uploaded attachment is physically saved inside the MEDIA_ROOT folder,
+        not in the project root or elsewhere.
+        """
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI"
+        )
+        
+        valid_png = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01'
+        png_file = SimpleUploadedFile("safe.png", valid_png, content_type="image/png")
+        
+        client.force_login(init_data['solic1'])
+        client.post(reverse('subir_adjunto', args=[ticket.id]), {'archivo': png_file})
+        
+        adjunto = ticket.adjuntos.first()
+        assert adjunto is not None
+        
+        # Get the absolute path on disk using the file field path property
+        file_path_on_disk = adjunto.archivo.path
+        
+        # Verify it starts with settings.MEDIA_ROOT
+        assert file_path_on_disk.startswith(settings.MEDIA_ROOT)
+        
+        # Verify the file actually exists on the filesystem in that location
+        assert os.path.exists(file_path_on_disk)
+
+
 
