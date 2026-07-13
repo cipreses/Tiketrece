@@ -86,7 +86,7 @@ h1, h2, h3, h4 {
     color: var(--text-primary);
     margin-bottom: 3rem;
 }
-.logo span {
+.logo-accent {
     color: var(--primary);
 }
 
