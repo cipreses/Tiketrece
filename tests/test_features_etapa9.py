@@ -719,5 +719,128 @@ class TestAttachments:
         assert Ticket.objects.count() == tickets_count_before
 
 
+from unittest.mock import patch
+from django.core import mail
+
+@pytest.mark.django_db(transaction=True)
+class TestEmailNotifications:
+    def test_email_notifications_sent_on_action(self, init_data, client, django_capture_on_commit_callbacks):
+        """
+        Verify that email notifications are sent to the correct active users
+        excluding the actor performing the change.
+        """
+        # Create a ticket
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI"
+        )
+        
+        # Create another agent in the same sector
+        agent2 = Usuario.objects.create(
+            username="agent2@13dejulio.edu.ar",
+            email="agent2@13dejulio.edu.ar",
+            google_sub="sub-agent2",
+            rol="agente"
+        )
+        agent2.sectores.add(init_data['sec_ti'])
+        
+        # Clear outbox
+        mail.outbox = []
+        
+        # Login as the agent_user (actor) to add a comment
+        client.force_login(init_data['agent_user'])
+        
+        with django_capture_on_commit_callbacks(execute=True):
+            client.post(reverse('agregar_comentario', args=[ticket.id]), {'texto': "Comentario del agente"})
+            
+        # Verify emails sent to solic1 (author) and agent2 (other agent in sector)
+        # It should not send to agent_user (actor)
+        assert len(mail.outbox) == 2
+        recipients = [email.to[0] for email in mail.outbox]
+        assert init_data['solic1'].email in recipients
+        assert agent2.email in recipients
+        assert init_data['agent_user'].email not in recipients
+        
+        # Verify content
+        for email in mail.outbox:
+            assert "[Tiketrece] Ticket #" in email.subject
+            assert "Nuevo comentario de agente@13dejulio.edu.ar" in email.body
+            assert "/tickets/" in email.body
+
+    def test_email_notifications_respects_opt_out(self, init_data, client, django_capture_on_commit_callbacks):
+        """
+        Verify that a user with recibir_emails=False does not receive email notifications
+        but still receives in-app notifications.
+        """
+        # Opt-out solic1
+        solic = init_data['solic1']
+        solic.recibir_emails = False
+        solic.save()
+        
+        ticket = Ticket.objects.create(
+            autor=solic, sector=init_data['sec_ti'], titulo="Ticket TI"
+        )
+        
+        mail.outbox = []
+        client.force_login(init_data['agent_user'])
+        
+        with django_capture_on_commit_callbacks(execute=True):
+            client.post(reverse('agregar_comentario', args=[ticket.id]), {'texto': "Comentario del agente"})
+            
+        # Outbox should be empty (solic1 opted out, agent_user is actor)
+        assert len(mail.outbox) == 0
+        
+        # But in-app notification must exist
+        assert ticket.notificaciones.filter(destinatario=solic).exists()
+
+    def test_email_notifications_not_sent_to_unrelated_users(self, init_data, client, django_capture_on_commit_callbacks):
+        """
+        Verify that email notifications are not sent to unrelated users.
+        """
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI"
+        )
+        
+        # Create an unrelated agent in Mantenimiento sector
+        maint_agent = Usuario.objects.create(
+            username="maint@13dejulio.edu.ar",
+            email="maint@13dejulio.edu.ar",
+            google_sub="sub-maint",
+            rol="agente"
+        )
+        maint_agent.sectores.add(init_data['sec_maint'])
+        
+        mail.outbox = []
+        client.force_login(init_data['solic1'])
+        
+        with django_capture_on_commit_callbacks(execute=True):
+            client.post(reverse('agregar_comentario', args=[ticket.id]), {'texto': "Actualizado"})
+            
+        # Verify email is not sent to unrelated maint_agent
+        for email in mail.outbox:
+            assert maint_agent.email not in email.to
+
+    @patch('tickets.services.send_mail')
+    def test_email_notifications_error_isolation(self, mock_send_mail, init_data, client, django_capture_on_commit_callbacks):
+        """
+        Verify that if email sending fails, the ticket action is still completed
+        and persistent (not rolled back).
+        """
+        mock_send_mail.side_effect = Exception("SMTP server down")
+        
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI"
+        )
+        
+        client.force_login(init_data['agent_user'])
+        comments_count_before = ticket.comentarios.count()
+        
+        with django_capture_on_commit_callbacks(execute=True):
+            response = client.post(reverse('agregar_comentario', args=[ticket.id]), {'texto': "Comentario seguro"})
+            
+        # Check action succeeded and comment was saved
+        assert response.status_code in [200, 204]
+        assert ticket.comentarios.count() == comments_count_before + 1
+
+
 
 

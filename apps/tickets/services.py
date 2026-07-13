@@ -4,6 +4,41 @@ from django.utils import timezone
 from .models import Ticket, Comentario, HistorialTicket, Notificacion
 from .permissions import es_gestor_o_autor
 
+from django.core.mail import send_mail
+from django.conf import settings
+import logging
+
+logger = logging.getLogger(__name__)
+
+def send_emails_safe(recipients_list, ticket, subject, message):
+    """
+    Sends emails individually to recipients in recipients_list who have recibir_emails=True.
+    Safe against SMTP exceptions to avoid transaction rollback or breaking request flow.
+    """
+    site_url = getattr(settings, 'SITE_URL', 'http://localhost:8000').rstrip('/')
+    for recipient in recipients_list:
+        if getattr(recipient, 'recibir_emails', True) and recipient.email:
+            body = (
+                f"Hola {recipient.first_name or recipient.username},\n\n"
+                f"El ticket #{ticket.id} tiene una novedad:\n"
+                f"{message}\n\n"
+                f"Podés ver los detalles ingresando al siguiente enlace:\n"
+                f"{site_url}/tickets/{ticket.id}/\n\n"
+                f"Saludos,\nEl equipo de Tiketrece"
+            )
+            try:
+                send_mail(
+                    subject=subject,
+                    message=body,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[recipient.email],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Error al enviar email a {recipient.email} para el ticket #{ticket.id}: {str(e)}"
+                )
+
 def create_notifications(ticket, actor, tipo, mensaje, origin_sector=None, dest_sector=None):
     """
     Creates notifications in bulk for relevant active users (author + agents of origin/destination sectors)
@@ -41,6 +76,21 @@ def create_notifications(ticket, actor, tipo, mensaje, origin_sector=None, dest_
         ))
     if notifications_to_create:
         Notificacion.objects.bulk_create(notifications_to_create)
+
+    # Queue email notifications on commit
+    tipo_map = {
+        'estado': 'cambió de estado',
+        'prioridad': 'cambió de prioridad',
+        'sector': 'cambió de sector',
+        'comentario': 'nuevo comentario',
+    }
+    action_desc = tipo_map.get(tipo, 'actualización')
+    subject = f"[Tiketrece] Ticket #{ticket.id} — {action_desc}"
+    
+    # Convert recipients set to a list
+    recipients_list = list(recipients)
+    
+    transaction.on_commit(lambda: send_emails_safe(recipients_list, ticket, subject, mensaje))
 
 @transaction.atomic
 def crear_ticket(autor, sector, prioridad, titulo, descripcion):

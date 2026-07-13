@@ -15,6 +15,7 @@ class Usuario(AbstractUser):
         ],
         default='solicitante'
     )
+    recibir_emails = models.BooleanField(default=True)
     
     # Many-to-many relationship with Sector through the custom bridge table
     sectores = models.ManyToManyField(
