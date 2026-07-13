@@ -2,8 +2,8 @@
 
 - **Proyecto:** Tiketrece — Sistema de Tickets de Servicios (Escuela 13 de Julio)
 - **Stack:** Django 5.2 · PostgreSQL 16 · HTMX · `google-auth` (OAuth 2.0 / OIDC)
-- **Commit auditado:** `7d2ecef` (posterior a las correcciones) · base previa `4e7c38c`
-- **Fecha:** 2026-07-13
+- **Commits auditados:** `7d2ecef` (MVP + correcciones de seguridad) · `b081bb9` (Etapa 9 – Parte 1) · base previa `4e7c38c`
+- **Fecha:** 2026-07-13 (MVP) · 2026-07-13 (Etapa 9 – Parte 1)
 - **Auditor:** Claude (control independiente; no participó del desarrollo)
 - **Documentos de referencia:** `spec_sistema_tickets_v2.md`, acta de aprobación Etapa 1
 
@@ -81,13 +81,43 @@ Cobertura por archivo (6 archivos, 28 tests):
 - **CI:** GitHub Actions levanta PostgreSQL y corre la suite en cada push
   (`.github/workflows/ci.yml`).
 
-## 6. Conclusión
+## 6. Etapa 9 — Parte 1 (búsqueda de texto + export CSV) · commit `b081bb9`
+
+Feature post-MVP auditada por separado. **Estado: ✅ APROBADA, sin observaciones abiertas.**
+
+**Alcance de la entrega:** búsqueda de texto en el listado (título + descripción),
+exportación del listado a CSV respetando alcance y filtros, alineación del permiso
+`puede_cambiar_estado` con el servicio, y test de humo de UI.
+
+**Hallazgo de seguridad (planteado en la revisión del plan y ya resuelto):**
+*CSV formula injection.* El `titulo` es texto libre del usuario; una celda que empiece
+con `= + - @` (o tab/CR) puede ejecutarse como fórmula al abrir el CSV en Excel. Se
+incorporó `sanitize_csv_cell` que neutraliza esas celdas con un apóstrofo. Verificado
+por test (`=1+1` → `'=1+1`).
+
+**Verificación por condición:**
+
+| Ítem | Estado | Evidencia |
+|------|:------:|-----------|
+| Alcance antes de filtros (búsqueda) | ✅ | `apps/tickets/views.py` — `q` sobre `obtener_tickets_visibles(user)` |
+| Export: alcance antes de filtros | ✅ | `export_tickets_csv_view`; test de bypass por `?autor=` da 0 filas |
+| CSV formula injection | ✅ | `sanitize_csv_cell` (`= + - @ \t \r` → `'`); test dedicado |
+| BOM UTF-8 + streaming | ✅ | `﻿` una vez + `StreamingHttpResponse` + `select_related` |
+| `puede_cambiar_estado` alineado al servicio | ✅ | solicitante-autor solo con estado `resuelto`/`cerrado` |
+| Test de humo de UI | ✅ | detalle como directivo muestra controles de prioridad/reasignar; listado muestra búsqueda + export |
+
+**Suite de tests:** **36/36 en verde** (28 del MVP + 8 de Etapa 9), corrida por el
+auditor contra PostgreSQL 16 real.
+
+## 7. Conclusión
 
 El MVP (Etapa 8) cumple la especificación v2 y las condiciones de aprobación de la
-Etapa 1, con la única falla de seguridad detectada ya corregida y verificada. La base
-es sólida, auditable y con cobertura de tests de los flujos críticos. **Apto para
-continuar** con las siguientes etapas (integración de credenciales reales de Google,
-despliegue) y para uso interno una vez configurada la OAuth App de producción.
+Etapa 1, con la única falla de seguridad detectada ya corregida y verificada. La
+Etapa 9 – Parte 1 (búsqueda + export CSV) fue auditada y aprobada, con el hallazgo de
+CSV formula injection resuelto. La base es sólida, auditable y con cobertura de tests
+de los flujos críticos (36/36). **Apto para continuar** con las siguientes etapas
+(más features de Etapa 9, integración de credenciales reales de Google, despliegue) y
+para uso interno una vez configurada la OAuth App de producción.
 
 ### Pendientes que dependen del usuario (no bloquean la aprobación técnica)
 
