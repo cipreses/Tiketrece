@@ -698,10 +698,207 @@ h1, h2, h3, h4 {
     font-size: 0.85rem;
 }
 
-/* Make sure topbar is responsive */
+/* Mobile Responsiveness & Hardening (max-width: 768px) */
 @media (max-width: 768px) {
+    /* App container and layout flow */
+    .app-container {
+        flex-direction: column !important;
+        position: relative !important;
+    }
+    
+    .sidebar {
+        width: 100% !important;
+        border-right: none !important;
+        border-bottom: 1px solid var(--border) !important;
+        padding: 1.25rem 1rem !important;
+        margin-bottom: 0 !important;
+        position: relative !important;
+    }
+    
+    /* Topbar absolute positioning to align with sidebar logo */
     .main-topbar {
-        justify-content: center !important;
-        padding-top: 0.5rem;
+        position: absolute !important;
+        top: 1rem !important;
+        right: 1rem !important;
+        border-bottom: none !important;
+        margin-bottom: 0 !important;
+        padding: 0 !important;
+        z-index: 1000 !important;
+        background: transparent !important;
+        justify-content: flex-end !important;
+    }
+    
+    /* Fixed viewport positioning for notification dropdown on mobile */
+    .notif-dropdown-content {
+        position: fixed !important;
+        top: 65px !important;
+        left: 10px !important;
+        right: 10px !important;
+        width: calc(100% - 20px) !important;
+        max-width: none !important;
+        z-index: 2000 !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+    }
+    
+    .notif-close-btn {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: none;
+        font-size: 1.75rem;
+        color: var(--text-secondary);
+        cursor: pointer;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        line-height: 1;
+        transition: var(--transition);
+    }
+    .notif-close-btn:hover {
+        color: var(--text-primary);
+    }
+    
+    /* Ticket Details Screen apilamiento */
+    .ticket-detail-grid {
+        grid-template-columns: 1fr !important;
+        gap: 1.5rem !important;
+    }
+    
+    /* Comments wrapping on mobile */
+    .comment-header {
+        flex-direction: column !important;
+        gap: 0.25rem !important;
+    }
+    .comment-author {
+        word-break: break-all !important;
+    }
+    
+    /* Table to Card layout transformation for tickets list */
+    .tickets-table, 
+    .tickets-table tbody, 
+    .tickets-table tr, 
+    .tickets-table td {
+        display: block !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    .tickets-table thead {
+        display: none !important;
+    }
+    .tickets-table tbody tr {
+        background-color: var(--bg-card) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 0.75rem !important;
+        padding: 1.25rem !important;
+        margin-bottom: 1rem !important;
+        position: relative !important;
+        cursor: pointer;
+    }
+    .tickets-table tbody tr:hover {
+        background-color: rgba(255, 255, 255, 0.02) !important;
+        border-color: var(--primary) !important;
+    }
+    .tickets-table td {
+        padding: 0.35rem 0 !important;
+        border-bottom: none !important;
+        text-align: left !important;
+    }
+    .tickets-table td:nth-child(1) {
+        font-size: 0.85rem !important;
+        color: var(--accent) !important;
+        font-weight: 700 !important;
+        margin-bottom: 0.25rem !important;
+        display: inline-block !important;
+        width: auto !important;
+    }
+    .tickets-table td:nth-child(2) {
+        font-size: 1.1rem !important;
+        font-weight: 700 !important;
+        color: var(--text-primary) !important;
+        margin-bottom: 0.5rem !important;
+        display: block !important;
+    }
+    .tickets-table td:nth-child(3) {
+        font-size: 0.85rem !important;
+        color: var(--text-secondary) !important;
+        display: inline-block !important;
+        margin-right: 1rem !important;
+    }
+    .tickets-table td:nth-child(4), 
+    .tickets-table td:nth-child(5) {
+        display: inline-block !important;
+        margin-right: 0.5rem !important;
+        vertical-align: middle !important;
+    }
+    .tickets-table td:nth-child(6) {
+        font-size: 0.85rem !important;
+        color: var(--text-secondary) !important;
+        display: block !important;
+        margin-top: 0.5rem !important;
+        word-break: break-all !important;
+    }
+    .tickets-table td:nth-child(7) {
+        font-size: 0.8rem !important;
+        color: var(--text-secondary) !important;
+        display: block !important;
+        margin-top: 0.25rem !important;
+    }
+    
+    /* Filters and form layouts full-width apilados */
+    .card form[hx-get*="tickets_list"] {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+    .card form div[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+    
+    /* Form fields and buttons height & touch comfort zone (>= 44px) */
+    .form-control, .btn {
+        min-height: 44px;
+    }
+    #archivo_input {
+        padding: 0.75rem 1rem !important;
+        font-size: 0.95rem !important;
+        min-height: 44px !important;
+    }
+    .main-content form button[type="submit"] {
+        padding: 0.75rem 1.5rem !important;
+        font-size: 0.95rem !important;
+        min-height: 44px !important;
+    }
+    .card select.form-control {
+        min-height: 44px !important;
+    }
+    .main-title-block a[href*="tickets_list"] {
+        display: inline-block !important;
+        padding: 0.5rem 0 !important;
+        min-height: 44px !important;
+        line-height: 30px !important;
+    }
+    .attachment-item .btn {
+        padding: 0.5rem 1rem !important;
+        font-size: 0.9rem !important;
+        min-height: 44px !important;
+    }
+    
+    /* Dashboard metrics 2x2 responsive structure */
+    .metrics-grid {
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important;
+        gap: 1rem !important;
+    }
+    .metric-card {
+        padding: 1.25rem 1rem !important;
+    }
+    .main-content > div[style*="grid-template-columns: 1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+        gap: 1.5rem !important;
+    }
+}
+@media (min-width: 769px) {
+    .notif-close-btn {
+        display: none !important;
     }
 }

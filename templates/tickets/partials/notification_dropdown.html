@@ -9,11 +9,16 @@
   <div class="notif-dropdown-content" id="notif-dropdown" onclick="event.stopPropagation();">
       <div class="notif-header">
           <span class="notif-title">Notificaciones</span>
-          {% if unread_count > 0 %}
-          <button class="btn-text" hx-post="{% url 'marcar_todas_notificaciones' %}" hx-target="#notification-bell-widget" hx-swap="outerHTML">
-              Marcar todas
-          </button>
-          {% endif %}
+          <div style="display: flex; gap: 0.75rem; align-items: center;">
+              {% if unread_count > 0 %}
+              <button class="btn-text" hx-post="{% url 'marcar_todas_notificaciones' %}" hx-target="#notification-bell-widget" hx-swap="outerHTML">
+                  Marcar todas
+              </button>
+              {% endif %}
+              <button type="button" class="notif-close-btn" onclick="document.getElementById('notif-dropdown').classList.remove('show'); event.stopPropagation();" title="Cerrar">
+                  &times;
+              </button>
+          </div>
       </div>
       <div class="notif-body">
           {% for n in notificaciones %}
