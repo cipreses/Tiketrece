@@ -1,6 +1,28 @@
 from django.db import models
 from django.conf import settings
 
+class PrioridadSLA(models.Model):
+    PRIORIDADES = [
+        ('baja', 'Baja'),
+        ('media', 'Media'),
+        ('alta', 'Alta'),
+        ('urgente', 'Urgente'),
+    ]
+    prioridad = models.CharField(max_length=15, choices=PRIORIDADES, unique=True)
+    horas_objetivo = models.PositiveIntegerField()
+
+    class Meta:
+        verbose_name = 'Prioridad SLA'
+        verbose_name_plural = 'Prioridades SLA'
+
+    def __str__(self):
+        return f"{self.get_prioridad_display()}: {self.horas_objetivo} horas"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        Ticket.clear_sla_cache()
+
+
 class Ticket(models.Model):
     PRIORIDADES = [
         ('baja', 'Baja'),
@@ -44,6 +66,76 @@ class Ticket(models.Model):
 
     def __str__(self):
         return f"#{self.id}: {self.titulo} ({self.estado})"
+
+    _sla_cache = None
+
+    @classmethod
+    def get_sla_dict(cls):
+        if cls._sla_cache is None:
+            try:
+                cls._sla_cache = {p.prioridad: p.horas_objetivo for p in PrioridadSLA.objects.all()}
+            except Exception:
+                cls._sla_cache = {}
+        return cls._sla_cache
+
+    @classmethod
+    def clear_sla_cache(cls):
+        cls._sla_cache = None
+
+    @property
+    def deadline(self):
+        sla_dict = Ticket.get_sla_dict()
+        defaults = {'urgente': 4, 'alta': 24, 'media': 72, 'baja': 168}
+        horas = sla_dict.get(self.prioridad)
+        if horas is None:
+            horas = defaults.get(self.prioridad, 72)
+        from datetime import timedelta
+        return self.creado_en + timedelta(hours=horas)
+
+    @property
+    def estado_sla(self):
+        if self.estado in ['resuelto', 'cerrado']:
+            return 'cerrado'
+        from django.utils import timezone
+        now = timezone.now()
+        dl = self.deadline
+        if now > dl:
+            return 'vencido'
+        return 'en_plazo'
+
+    @property
+    def sla_texto(self):
+        if self.estado in ['resuelto', 'cerrado']:
+            return "Cerrado"
+        from django.utils import timezone
+        now = timezone.now()
+        dl = self.deadline
+        if now > dl:
+            diff = now - dl
+            days = diff.days
+            hours, remainder = divmod(diff.seconds, 3600)
+            minutes, _ = divmod(remainder, 60)
+            parts = []
+            if days > 0:
+                parts.append(f"{days}d")
+            if hours > 0:
+                parts.append(f"{hours}h")
+            if minutes > 0 or not parts:
+                parts.append(f"{minutes}m")
+            return f"vencido hace {' '.join(parts)}"
+        else:
+            diff = dl - now
+            days = diff.days
+            hours, remainder = divmod(diff.seconds, 3600)
+            minutes, _ = divmod(remainder, 60)
+            parts = []
+            if days > 0:
+                parts.append(f"{days}d")
+            if hours > 0:
+                parts.append(f"{hours}h")
+            if minutes > 0 or not parts:
+                parts.append(f"{minutes}m")
+            return f"vence en {' '.join(parts)}"
 
 
 class Comentario(models.Model):

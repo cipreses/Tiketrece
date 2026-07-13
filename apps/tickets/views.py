@@ -6,7 +6,7 @@ from django.http import HttpResponseForbidden, HttpResponse, Http404
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Q, Case, When, Value, IntegerField
 from sectores.models import Sector
-from tickets.models import Ticket, Comentario, HistorialTicket, Notificacion, Adjunto
+from tickets.models import Ticket, Comentario, HistorialTicket, Notificacion, Adjunto, PrioridadSLA
 from tickets.permissions import (
     obtener_tickets_visibles,
     puede_ver_ticket,
@@ -25,6 +25,28 @@ from tickets.services import (
     reasignar_sector,
     agregar_comentario
 )
+from usuarios.views import directivo_required
+
+def filtrar_vencidos_query(tickets):
+    """
+    Filters the queryset to include only active tickets that are vencidos.
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+    from django.db.models import Q
+    
+    sla_dict = Ticket.get_sla_dict()
+    defaults = {'urgente': 4, 'alta': 24, 'media': 72, 'baja': 168}
+    for k, v in defaults.items():
+        sla_dict.setdefault(k, v)
+        
+    now = timezone.now()
+    sla_query = Q()
+    for prio, horas in sla_dict.items():
+        threshold = now - timedelta(hours=horas)
+        sla_query |= Q(prioridad=prio, creado_en__lt=threshold)
+        
+    return tickets.exclude(estado__in=['resuelto', 'cerrado']).filter(sla_query)
 
 @login_required
 def dashboard_view(request):
@@ -42,12 +64,15 @@ def dashboard_view(request):
     for prioridad, _ in Ticket.PRIORIDADES:
         totales_prioridad.setdefault(prioridad, 0)
 
+    vencidos_count = filtrar_vencidos_query(tickets_visibles).count()
+
     indicadores = {
         'abiertos': totales_estado.get('abierto', 0),
         'en_progreso': totales_estado.get('en_progreso', 0),
         'en_espera': totales_estado.get('en_espera', 0),
         'resueltos': totales_estado.get('resuelto', 0),
         'cerrados': totales_estado.get('cerrado', 0),
+        'vencidos': vencidos_count,
         'total': tickets_visibles.count()
     }
 
@@ -68,6 +93,7 @@ def tickets_list_view(request):
     prioridad = request.GET.get('prioridad')
     autor_email = request.GET.get('autor')
     q = request.GET.get('q', '').strip()
+    vencidos_only = request.GET.get('vencidos') == 'true'
     
     if sector_id:
         tickets = tickets.filter(sector_id=sector_id)
@@ -79,8 +105,12 @@ def tickets_list_view(request):
         tickets = tickets.filter(autor__email__icontains=autor_email)
     if q:
         tickets = tickets.filter(Q(titulo__icontains=q) | Q(descripcion__icontains=q))
+    if vencidos_only:
+        tickets = filtrar_vencidos_query(tickets)
         
     # Tickets are ordered by updated_at desc by default (defined in Meta)
+    # Prefetch sector and autor to avoid N+1 queries during list rendering
+    tickets = tickets.select_related('sector', 'autor')
     
     sectores = Sector.objects.filter(activo=True)
     
@@ -98,7 +128,8 @@ def tickets_list_view(request):
         'f_estado': estado,
         'f_prioridad': prioridad,
         'f_autor': autor_email,
-        'f_q': q
+        'f_q': q,
+        'f_vencidos': vencidos_only
     })
 
 @login_required
@@ -331,6 +362,7 @@ def export_tickets_csv_view(request):
     prioridad = request.GET.get('prioridad')
     autor_email = request.GET.get('autor')
     q = request.GET.get('q', '').strip()
+    vencidos_only = request.GET.get('vencidos') == 'true'
     
     if sector_id:
         tickets = tickets.filter(sector_id=sector_id)
@@ -342,9 +374,11 @@ def export_tickets_csv_view(request):
         tickets = tickets.filter(autor__email__icontains=autor_email)
     if q:
         tickets = tickets.filter(Q(titulo__icontains=q) | Q(descripcion__icontains=q))
+    if vencidos_only:
+        tickets = filtrar_vencidos_query(tickets)
         
-    # Ordered by updated_at desc
-    tickets = tickets.order_by('-actualizado_en')
+    # Ordered by updated_at desc and prefetch relations
+    tickets = tickets.select_related('sector', 'autor').order_by('-actualizado_en')
     
     def csv_rows():
         # Excel UTF-8 BOM so Excel opens it with correct accent chars automatically
@@ -359,7 +393,7 @@ def export_tickets_csv_view(request):
             'creado_en', 'actualizado_en', 'cerrado_en'
         ])
         
-        for ticket in tickets.select_related('sector', 'autor'):
+        for ticket in tickets:
             yield writer.writerow([
                 ticket.id,
                 sanitize_csv_cell(ticket.titulo),
@@ -502,6 +536,36 @@ def descargar_adjunto_view(request, adjunto_id):
     response['X-Content-Type-Options'] = 'nosniff'
     
     return response
+
+
+@directivo_required
+def sla_config_view(request):
+    if request.method == 'POST':
+        # Process the form submission to update target hours
+        for key in ['urgente', 'alta', 'media', 'baja']:
+            horas_str = request.POST.get(f'horas_{key}', '').strip()
+            if horas_str.isdigit():
+                horas = int(horas_str)
+                PrioridadSLA.objects.update_or_create(
+                    prioridad=key,
+                    defaults={'horas_objetivo': horas}
+                )
+        messages.success(request, "Configuración de SLA de Prioridades actualizada correctamente.")
+        return redirect('sla_config')
+
+    # Get or create default priorities so the page always renders nicely
+    prioridades_sla = []
+    defaults = {'urgente': 4, 'alta': 24, 'media': 72, 'baja': 168}
+    for key, label in PrioridadSLA.PRIORIDADES:
+        obj, created = PrioridadSLA.objects.get_or_create(
+            prioridad=key,
+            defaults={'horas_objetivo': defaults[key]}
+        )
+        prioridades_sla.append(obj)
+
+    return render(request, 'tickets/sla_config.html', {
+        'prioridades_sla': prioridades_sla
+    })
 
 
 

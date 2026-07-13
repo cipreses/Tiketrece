@@ -154,8 +154,11 @@
                 
                 <div class="meta-row">
                     <span class="label">Prioridad:</span>
-                    <span class="val">
+                    <span class="val" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                         <span class="badge badge-{{ ticket.prioridad }}">{{ ticket.get_prioridad_display }}</span>
+                        <span class="badge-sla {% if ticket.estado_sla == 'vencido' %}badge-sla-vencido{% elif ticket.estado_sla == 'en_plazo' %}badge-sla-plazo{% else %}badge-sla-cerrado{% endif %}">
+                            ⏱️ {{ ticket.sla_texto }}
+                        </span>
                     </span>
                 </div>
                 

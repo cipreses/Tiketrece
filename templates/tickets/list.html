@@ -68,6 +68,11 @@
             <input type="text" name="autor" id="autor" class="form-control" placeholder="Buscar por email..." value="{{ f_autor|default:'' }}">
         </div>
         
+        <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; height: 100%; margin-top: 1.5rem;">
+            <input type="checkbox" name="vencidos" id="vencidos" value="true" {% if f_vencidos %}checked{% endif %} style="width: 20px; height: 20px; cursor: pointer;">
+            <label for="vencidos" style="cursor: pointer; margin: 0; font-weight: 600;">⚠️ Solo Vencidos</label>
+        </div>
+        
     </form>
 </div>
 

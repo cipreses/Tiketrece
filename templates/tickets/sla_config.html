@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}Configuración de SLA{% endblock %}
+
+{% block content %}
+<div class="main-header">
+    <div class="main-title-block">
+        <h1>⏱️ Configurar Tiempos de SLA</h1>
+        <p>Establecé los límites de horas para la resolución de tickets por prioridad</p>
+    </div>
+</div>
+
+<div class="card" style="max-width: 600px; margin-top: 1rem;">
+    <h3 class="card-title" style="margin-bottom: 1.5rem;">⏱️ Horas Objetivo por Prioridad</h3>
+    
+    <form method="post" style="display: flex; flex-direction: column; gap: 1.5rem;">
+        {% csrf_token %}
+        
+        {% for sla in prioridades_sla %}
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 120px; align-items: center; gap: 1rem;">
+            <label style="margin: 0; font-weight: 600;">
+                Prioridad {{ sla.get_prioridad_display }}:
+            </label>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="number" name="horas_{{ sla.prioridad }}" value="{{ sla.horas_objetivo }}" min="1" max="9999" class="form-control" style="text-align: right;" required>
+                <span style="color: var(--text-secondary); font-size: 0.9rem;">hs</span>
+            </div>
+        </div>
+        {% endfor %}
+        
+        <div style="margin-top: 1rem; display: flex; justify-content: flex-end;">
+            <button type="submit" class="btn btn-primary" style="min-height: 44px; padding: 0.75rem 2rem;">
+                💾 Guardar Configuración
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -29,6 +29,7 @@ urlpatterns = [
     path('tickets/', ticket_views.tickets_list_view, name='tickets_list'),
     path('tickets/crear/', ticket_views.crear_ticket_view, name='crear_ticket'),
     path('tickets/export/', ticket_views.export_tickets_csv_view, name='export_tickets_csv'),
+    path('tickets/sla/', ticket_views.sla_config_view, name='sla_config'),
     
     # Notifications
     path('notifications/', ticket_views.notificaciones_dropdown_view, name='notificaciones_dropdown'),

@@ -54,6 +54,11 @@
                             👥 Usuarios & Roles
                         </a>
                     </li>
+                    <li class="nav-item {% if request.resolver_match.url_name == 'sla_config' %}active{% endif %}">
+                        <a href="{% url 'sla_config' %}">
+                            ⏱️ Configurar SLA
+                        </a>
+                    </li>
                     {% endif %}
                 </ul>
             </nav>

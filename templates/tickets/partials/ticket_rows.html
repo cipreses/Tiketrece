@@ -7,7 +7,12 @@
         <span class="badge badge-{{ ticket.estado }}">{{ ticket.get_estado_display }}</span>
     </td>
     <td>
-        <span class="badge badge-{{ ticket.prioridad }}">{{ ticket.get_prioridad_display }}</span>
+        <div style="display: flex; flex-direction: column; gap: 0.25rem; align-items: flex-start;">
+            <span class="badge badge-{{ ticket.prioridad }}">{{ ticket.get_prioridad_display }}</span>
+            <span class="badge-sla {% if ticket.estado_sla == 'vencido' %}badge-sla-vencido{% elif ticket.estado_sla == 'en_plazo' %}badge-sla-plazo{% else %}badge-sla-cerrado{% endif %}">
+                ⏱️ {{ ticket.sla_texto }}
+            </span>
+        </div>
     </td>
     <td style="font-size: 0.85rem; color: var(--text-secondary);">
         {{ ticket.autor.email }}

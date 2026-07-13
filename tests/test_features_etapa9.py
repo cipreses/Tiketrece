@@ -842,5 +842,126 @@ class TestEmailNotifications:
         assert ticket.comentarios.count() == comments_count_before + 1
 
 
+from tickets.models import PrioridadSLA
+from django.utils import timezone
+from datetime import timedelta
+
+@pytest.mark.django_db
+class TestSLAPriority:
+    def test_sla_deadline_calculation(self, init_data):
+        """
+        Verify that deadline is calculated correctly based on PrioridadSLA.
+        """
+        # Ensure priority SLA table has default values
+        PrioridadSLA.objects.update_or_create(prioridad='urgente', defaults={'horas_objetivo': 4})
+        
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], prioridad='urgente', titulo="Ticket Urgente"
+        )
+        
+        expected_deadline = ticket.creado_en + timedelta(hours=4)
+        assert ticket.deadline == expected_deadline
+
+    def test_sla_vencido_recent_and_past(self, init_data):
+        """
+        Verify recent ticket is 'en_plazo' and past ticket is 'vencido'.
+        """
+        PrioridadSLA.objects.update_or_create(prioridad='urgente', defaults={'horas_objetivo': 4})
+        
+        # Recent ticket
+        ticket_recent = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], prioridad='urgente', titulo="Ticket Reciente"
+        )
+        assert ticket_recent.estado_sla == 'en_plazo'
+        assert "vence en" in ticket_recent.sla_texto
+        
+        # Past ticket
+        ticket_past = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], prioridad='urgente', titulo="Ticket Viejo"
+        )
+        # Backdate it using update() as cread_en is auto_now_add
+        past_time = timezone.now() - timedelta(hours=5)
+        Ticket.objects.filter(id=ticket_past.id).update(creado_en=past_time)
+        ticket_past.refresh_from_db()
+        
+        assert ticket_past.estado_sla == 'vencido'
+        assert "vencido hace" in ticket_past.sla_texto
+
+    def test_sla_list_filter_by_scope(self, init_data, client):
+        """
+        Verify list filter 'vencidos=true' only returns active vencidos within user's scope.
+        """
+        PrioridadSLA.objects.update_or_create(prioridad='urgente', defaults={'horas_objetivo': 4})
+        
+        # Create ticket for solic1 (vencido)
+        t_solic1_vencido = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], prioridad='urgente', titulo="Solic1 Vencido"
+        )
+        Ticket.objects.filter(id=t_solic1_vencido.id).update(creado_en=timezone.now() - timedelta(hours=5))
+        
+        # Create ticket for solic2 (vencido)
+        t_solic2_vencido = Ticket.objects.create(
+            autor=init_data['solic2'], sector=init_data['sec_ti'], prioridad='urgente', titulo="Solic2 Vencido"
+        )
+        Ticket.objects.filter(id=t_solic2_vencido.id).update(creado_en=timezone.now() - timedelta(hours=5))
+        
+        # Create ticket for solic1 (not vencido / en_plazo)
+        t_solic1_recent = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], prioridad='urgente', titulo="Solic1 Reciente"
+        )
+        
+        # Login as solic1
+        client.force_login(init_data['solic1'])
+        
+        # Fetch list without filter
+        response = client.get(reverse('tickets_list'))
+        assert response.status_code == 200
+        # solic1 can see their own tickets
+        tickets_list = response.context['tickets']
+        assert t_solic1_vencido in tickets_list
+        assert t_solic1_recent in tickets_list
+        assert t_solic2_vencido not in tickets_list # Not their scope
+        
+        # Fetch list with filter
+        response_filtered = client.get(reverse('tickets_list') + '?vencidos=true')
+        assert response_filtered.status_code == 200
+        tickets_filtered = response_filtered.context['tickets']
+        assert t_solic1_vencido in tickets_filtered
+        assert t_solic1_recent not in tickets_filtered
+        assert t_solic2_vencido not in tickets_filtered
+
+    def test_sla_dashboard_counter_by_scope(self, init_data, client):
+        """
+        Verify dashboard counter respects user scope.
+        """
+        PrioridadSLA.objects.update_or_create(prioridad='urgente', defaults={'horas_objetivo': 4})
+        
+        # Create solic1 vencido
+        t_solic1 = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], prioridad='urgente', titulo="Solic1 Vencido"
+        )
+        Ticket.objects.filter(id=t_solic1.id).update(creado_en=timezone.now() - timedelta(hours=5))
+        
+        # Create solic2 vencido
+        t_solic2 = Ticket.objects.create(
+            autor=init_data['solic2'], sector=init_data['sec_ti'], prioridad='urgente', titulo="Solic2 Vencido"
+        )
+        Ticket.objects.filter(id=t_solic2.id).update(creado_en=timezone.now() - timedelta(hours=5))
+        
+        # Login as solic1
+        client.force_login(init_data['solic1'])
+        response = client.get(reverse('dashboard'))
+        assert response.status_code == 200
+        # solic1 should only count their own vencido ticket
+        assert response.context['indicadores']['vencidos'] == 1
+        
+        # Login as agent_user (who has access to sec_ti where both solicitations are located)
+        client.force_login(init_data['agent_user'])
+        response_agent = client.get(reverse('dashboard'))
+        assert response_agent.status_code == 200
+        # Agent sees both vencidos
+        assert response_agent.context['indicadores']['vencidos'] == 2
+
+
 
 

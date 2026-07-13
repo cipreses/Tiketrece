@@ -952,3 +952,32 @@ h1, h2, h3, h4 {
     clip: rect(0, 0, 0, 0) !important;
     border: 0 !important;
 }
+
+/* SLA metric card and badge styling */
+.border-vencido {
+    border-left: 4px solid var(--danger) !important;
+}
+.badge-sla {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.badge-sla-plazo {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.badge-sla-vencido {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+.badge-sla-cerrado {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
