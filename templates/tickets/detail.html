@@ -39,14 +39,12 @@
                 <div class="form-group">
                     <label>Transición de Estado:</label>
                     {% if transiciones_validas %}
-                    <form hx-post="{% url 'cambiar_estado' ticket.id %}" hx-swap="none">
-                        <select name="estado" class="form-control" onchange="this.form.dispatchEvent(new Event('submit'))">
-                            <option value="" disabled selected>-- Avanzar Estado --</option>
-                            {% for state_key in transiciones_validas %}
-                            <option value="{{ state_key }}">{{ state_key|capfirst }}</option>
-                            {% endfor %}
-                        </select>
-                    </form>
+                    <select name="estado" hx-post="{% url 'cambiar_estado' ticket.id %}" hx-swap="none" class="form-control">
+                        <option value="" disabled selected>-- Avanzar Estado --</option>
+                        {% for state_key in transiciones_validas %}
+                        <option value="{{ state_key }}">{{ state_key|capfirst }}</option>
+                        {% endfor %}
+                    </select>
                     {% else %}
                     <span style="font-size: 0.85rem; color: var(--text-secondary); padding: 0.75rem; border: 1px dashed var(--border); border-radius: 0.5rem; text-align: center;">
                         Sin transiciones disponibles.
@@ -59,16 +57,14 @@
                 {% if puede_cambiar_prioridad %}
                 <div class="form-group">
                     <label>Modificar Prioridad:</label>
-                    <form hx-post="{% url 'cambiar_prioridad' ticket.id %}" hx-swap="none">
-                        <select name="prioridad" class="form-control" onchange="this.form.dispatchEvent(new Event('submit'))">
-                            <option value="" disabled selected>-- Cambiar Prioridad --</option>
-                            {% for pk, pv in prioridades %}
-                            {% if pk != ticket.prioridad %}
-                            <option value="{{ pk }}">{{ pv }}</option>
-                            {% endif %}
-                            {% endfor %}
-                        </select>
-                    </form>
+                    <select name="prioridad" hx-post="{% url 'cambiar_prioridad' ticket.id %}" hx-swap="none" class="form-control">
+                        <option value="" disabled selected>-- Cambiar Prioridad --</option>
+                        {% for pk, pv in prioridades %}
+                        {% if pk != ticket.prioridad %}
+                        <option value="{{ pk }}">{{ pv }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
                 </div>
                 {% endif %}
                 
@@ -76,30 +72,26 @@
                 {% if puede_reasignar %}
                 <div class="form-group">
                     <label>Reasignar Sector (Global):</label>
-                    <form hx-post="{% url 'reasignar_sector' ticket.id %}" hx-swap="none">
-                        <select name="sector_id" class="form-control" onchange="this.form.dispatchEvent(new Event('submit'))">
-                            <option value="" disabled selected>-- Reasignar Sector --</option>
-                            {% for s in sectores %}
-                            {% if s.id != ticket.sector_id %}
-                            <option value="{{ s.id }}">{{ s.nombre }}</option>
-                            {% endif %}
-                            {% endfor %}
-                        </select>
-                    </form>
+                    <select name="sector_id" hx-post="{% url 'reasignar_sector' ticket.id %}" hx-swap="none" class="form-control">
+                        <option value="" disabled selected>-- Reasignar Sector --</option>
+                        {% for s in sectores %}
+                        {% if s.id != ticket.sector_id %}
+                        <option value="{{ s.id }}">{{ s.nombre }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
                 </div>
                 {% elif puede_derivar %}
                 <div class="form-group">
                     <label>Derivar Sector:</label>
-                    <form hx-post="{% url 'derivar_ticket' ticket.id %}" hx-swap="none">
-                        <select name="sector_id" class="form-control" onchange="this.form.dispatchEvent(new Event('submit'))">
-                            <option value="" disabled selected>-- Derivar a Sector --</option>
-                            {% for s in sectores %}
-                            {% if s.id != ticket.sector_id %}
-                            <option value="{{ s.id }}">{{ s.nombre }}</option>
-                            {% endif %}
-                            {% endfor %}
-                        </select>
-                    </form>
+                    <select name="sector_id" hx-post="{% url 'derivar_ticket' ticket.id %}" hx-swap="none" class="form-control">
+                        <option value="" disabled selected>-- Derivar a Sector --</option>
+                        {% for s in sectores %}
+                        {% if s.id != ticket.sector_id %}
+                        <option value="{{ s.id }}">{{ s.nombre }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
                 </div>
                 {% endif %}
                 
