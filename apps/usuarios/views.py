@@ -1,5 +1,6 @@
 import urllib.parse
 import requests
+import secrets
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
@@ -48,7 +49,7 @@ def login_view(request):
 
 def google_login_redirect(request):
     # Set state in session for CSRF check
-    state = "state_" + str(hash(settings.SECRET_KEY))[:10]
+    state = secrets.token_urlsafe(32)
     request.session['oauth_state'] = state
     
     auth_url = "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode({

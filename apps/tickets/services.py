@@ -2,19 +2,7 @@ from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from .models import Ticket, Comentario, HistorialTicket
-
-def es_gestor_o_autor(usuario, ticket):
-    """
-    Checks if the user is the author of the ticket, a directivo,
-    or an agent assigned to the ticket's current sector.
-    """
-    if usuario == ticket.autor:
-        return True
-    if usuario.rol == 'directivo' or usuario.es_superadmin:
-        return True
-    if usuario.rol == 'agente' and usuario.sectores.filter(id=ticket.sector_id).exists():
-        return True
-    return False
+from .permissions import es_gestor_o_autor
 
 @transaction.atomic
 def crear_ticket(autor, sector, prioridad, titulo, descripcion):
@@ -182,15 +170,7 @@ def agregar_comentario(ticket, autor, texto):
         raise ValidationError("El comentario no puede estar vacío.")
 
     # Rule of "relacionado" validation (RF-10)
-    es_relacionado = False
-    if autor.rol == 'directivo' or autor.es_superadmin:
-        es_relacionado = True
-    elif autor == ticket.autor:
-        es_relacionado = True
-    elif autor.rol == 'agente' and autor.sectores.filter(id=ticket.sector_id).exists():
-        es_relacionado = True
-
-    if not es_relacionado:
+    if not es_gestor_o_autor(autor, ticket):
         raise ValidationError("No tienes permisos para comentar en este ticket porque no está relacionado con tu rol o alcance.")
 
     comentario = Comentario.objects.create(

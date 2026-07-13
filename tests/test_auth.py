@@ -74,3 +74,110 @@ class TestAuthentication:
             with pytest.raises(PermissionDenied) as exc_info:
                 backend.authenticate(None, token="some-google-id-token")
             assert "no está verificado" in str(exc_info.value)
+
+    def test_oauth_state_is_unique(self):
+        """
+        Verify that successive calls to google_login_redirect generate unique random state nonces.
+        """
+        from django.test import RequestFactory
+        from django.contrib.sessions.middleware import SessionMiddleware
+        from usuarios.views import google_login_redirect
+        
+        factory = RequestFactory()
+        
+        # Request 1
+        request1 = factory.get('/auth/google/')
+        middleware1 = SessionMiddleware(lambda req: None)
+        middleware1.process_request(request1)
+        request1.session.save()
+        google_login_redirect(request1)
+        state1 = request1.session.get('oauth_state')
+        
+        # Request 2
+        request2 = factory.get('/auth/google/')
+        middleware2 = SessionMiddleware(lambda req: None)
+        middleware2.process_request(request2)
+        request2.session.save()
+        google_login_redirect(request2)
+        state2 = request2.session.get('oauth_state')
+        
+        assert state1 is not None
+        assert state2 is not None
+        assert state1 != state2
+
+    def test_oauth_callback_rejects_mismatched_state(self):
+        """
+        Verify that mismatched oauth_state throws PermissionDenied in callback.
+        """
+        from django.test import RequestFactory
+        from django.contrib.sessions.middleware import SessionMiddleware
+        from usuarios.views import google_login_callback
+        
+        factory = RequestFactory()
+        request = factory.get('/auth/callback/?code=somecode&state=invalid_nonce')
+        
+        middleware = SessionMiddleware(lambda req: None)
+        middleware.process_request(request)
+        request.session['oauth_state'] = 'valid_nonce'
+        request.session.save()
+        
+        with pytest.raises(PermissionDenied) as exc_info:
+            google_login_callback(request)
+        assert "Fallo en verificación CSRF de OAuth state" in str(exc_info.value)
+
+    def test_audit_logs_are_readonly_at_db_level_update(self):
+        """
+        Verify that the PostgreSQL triggers block UPDATE operations on audit tables.
+        """
+        import django.db
+        from tickets.models import Ticket, HistorialTicket
+        from sectores.models import Sector
+        from usuarios.models import Usuario
+        
+        sector = Sector.objects.create(nombre='Test Audit DB 1', activo=True)
+        user = Usuario.objects.create(
+            username='auditor1@13dejulio.edu.ar', email='auditor1@13dejulio.edu.ar', google_sub='sub-audit-db1'
+        )
+        ticket = Ticket.objects.create(autor=user, sector=sector, titulo='Test', descripcion='Desc')
+        
+        log = HistorialTicket.objects.create(
+            ticket=ticket,
+            actor=user,
+            tipo='estado',
+            valor_anterior='abierto',
+            valor_nuevo='en_progreso'
+        )
+        
+        # Attempting UPDATE must fail at database level
+        log.valor_nuevo = 'resolved'
+        with pytest.raises(django.db.utils.InternalError) as exc_info:
+            log.save()
+        assert "UPDATE and DELETE are prohibited" in str(exc_info.value)
+
+    def test_audit_logs_are_readonly_at_db_level_delete(self):
+        """
+        Verify that the PostgreSQL triggers block DELETE operations on audit tables.
+        """
+        import django.db
+        from tickets.models import Ticket, HistorialTicket
+        from sectores.models import Sector
+        from usuarios.models import Usuario
+        
+        sector = Sector.objects.create(nombre='Test Audit DB 2', activo=True)
+        user = Usuario.objects.create(
+            username='auditor2@13dejulio.edu.ar', email='auditor2@13dejulio.edu.ar', google_sub='sub-audit-db2'
+        )
+        ticket = Ticket.objects.create(autor=user, sector=sector, titulo='Test', descripcion='Desc')
+        
+        log = HistorialTicket.objects.create(
+            ticket=ticket,
+            actor=user,
+            tipo='estado',
+            valor_anterior='abierto',
+            valor_nuevo='en_progreso'
+        )
+        
+        # Attempting DELETE must fail at database level
+        with pytest.raises(django.db.utils.InternalError) as exc_info:
+            log.delete()
+        assert "UPDATE and DELETE are prohibited" in str(exc_info.value)

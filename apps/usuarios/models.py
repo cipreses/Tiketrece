@@ -31,13 +31,6 @@ class Usuario(AbstractUser):
         # Enforce unusable password for users (authentication is 100% Google-based)
         if not self.password or self.password == '':
             self.set_unusable_password()
-        
-        # Auto-promote is_staff if directivo/superadmin so they can manage sectors/roles
-        is_super = self.email in getattr(settings, 'SUPERADMIN_EMAILS', [])
-        if self.rol == 'directivo' or is_super:
-            self.is_staff = True
-        else:
-            self.is_staff = False
             
         super().save(*args, **kwargs)
 

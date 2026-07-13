@@ -23,53 +23,32 @@ def obtener_tickets_visibles(usuario, base_queryset=None):
     return base_queryset.filter(autor=usuario)
 
 
-def puede_ver_ticket(usuario, ticket):
-    if not usuario.is_authenticated:
-        return False
-    if usuario.rol == 'directivo' or usuario.es_superadmin:
-        return True
-    if usuario.rol == 'agente':
-        return usuario.sectores.filter(id=ticket.sector_id).exists()
-    return ticket.autor == usuario
-
-
-def puede_comentar_ticket(usuario, ticket):
+def es_gestor_o_autor(usuario, ticket):
     """
-    RF-10 (relacionado):
-    - Solicitante: only on their own tickets.
-    - Agente: only on tickets of their sector(s).
-    - Directivo/Superadmin: global.
+    Checks if the user is the author of the ticket, a directivo/superadmin,
+    or an agent assigned to the ticket's current sector.
     """
     if not usuario.is_authenticated:
         return False
-    if usuario.rol == 'directivo' or usuario.es_superadmin:
-        return True
     if usuario == ticket.autor:
         return True
-    if usuario.rol == 'agente':
-        return usuario.sectores.filter(id=ticket.sector_id).exists()
-    return False
-
-
-def puede_cambiar_estado(usuario, ticket):
-    """
-    State changes:
-    - Agente: only if ticket belongs to their sector.
-    - Directivo/Superadmin: global.
-    - Solicitante: can only close/reopen their own tickets (close must be from resuelto).
-    """
-    if not usuario.is_authenticated:
-        return False
     if usuario.rol == 'directivo' or usuario.es_superadmin:
         return True
     if usuario.rol == 'agente' and usuario.sectores.filter(id=ticket.sector_id).exists():
         return True
-    # Solicitante close/reopen check (must be the author)
-    if usuario == ticket.autor:
-        # State machine validations themselves are checked in service layers,
-        # but author is allowed to close (from resuelto) or reopen (from cerrado)
-        return True
     return False
+
+
+def puede_ver_ticket(usuario, ticket):
+    return es_gestor_o_autor(usuario, ticket)
+
+
+def puede_comentar_ticket(usuario, ticket):
+    return es_gestor_o_autor(usuario, ticket)
+
+
+def puede_cambiar_estado(usuario, ticket):
+    return es_gestor_o_autor(usuario, ticket)
 
 
 def puede_cambiar_prioridad(usuario, ticket):

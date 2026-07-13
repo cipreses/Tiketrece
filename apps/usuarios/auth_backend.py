@@ -19,7 +19,7 @@ class GoogleOAuthBackend(BaseBackend):
             if mock_email:
                 # Blindage requirement: mock only emits @13dejulio.edu.ar identities
                 domain = mock_email.split('@')[-1] if mock_email else ''
-                if domain != '13dejulio.edu.ar':
+                if domain.lower() != '13dejulio.edu.ar':
                     raise PermissionDenied("El mock de inicio de sesión solo emite identidades de dominio @13dejulio.edu.ar.")
                 
                 sub = mock_sub or f"mock-sub-{mock_email}"
@@ -51,11 +51,11 @@ class GoogleOAuthBackend(BaseBackend):
                 domain_allowed = '13dejulio.edu.ar'
                 
                 if hd:
-                    if hd != domain_allowed:
+                    if hd.lower() != domain_allowed:
                         raise PermissionDenied(f"Dominio alojado (hd) '{hd}' no permitido.")
                 else:
                     domain = email.split('@')[-1] if email else ''
-                    if domain != domain_allowed:
+                    if domain.lower() != domain_allowed:
                         raise PermissionDenied(f"Dominio del correo '{domain}' no permitido.")
                 
                 sub = idinfo.get('sub')
