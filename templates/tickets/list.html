@@ -73,6 +73,11 @@
             <label for="vencidos" style="cursor: pointer; margin: 0; font-weight: 600;">⚠️ Solo Vencidos</label>
         </div>
         
+        <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; height: 100%; margin-top: 1.5rem;">
+            <input type="checkbox" name="asignados_a_mi" id="asignados_a_mi" value="true" {% if f_asignados_a_mi %}checked{% endif %} style="width: 20px; height: 20px; cursor: pointer;">
+            <label for="asignados_a_mi" style="cursor: pointer; margin: 0; font-weight: 600;">👤 Asignados a Mí</label>
+        </div>
+        
     </form>
 </div>
 
@@ -87,6 +92,7 @@
                     <th>Sector</th>
                     <th>Estado</th>
                     <th>Prioridad</th>
+                    <th>Asignado</th>
                     <th>Solicitado por</th>
                     <th style="text-align: right; width: 180px;">Actualizado</th>
                 </tr>

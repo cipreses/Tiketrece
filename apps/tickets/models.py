@@ -43,6 +43,13 @@ class Ticket(models.Model):
     descripcion = models.TextField()
     sector = models.ForeignKey('sectores.Sector', on_delete=models.PROTECT, related_name='tickets')
     autor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='tickets_creados')
+    agente_asignado = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tickets_asignados'
+    )
     prioridad = models.CharField(max_length=15, choices=PRIORIDADES, default='media')
     estado = models.CharField(max_length=20, choices=ESTADOS, default='abierto')
     
@@ -158,6 +165,7 @@ class HistorialTicket(models.Model):
         ('estado', 'Estado'),
         ('prioridad', 'Prioridad'),
         ('sector', 'Sector'),
+        ('asignacion', 'Asignación'),
     ]
 
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='historial')
@@ -182,6 +190,7 @@ class Notificacion(models.Model):
         ('prioridad', 'Prioridad'),
         ('sector', 'Sector'),
         ('comentario', 'Comentario'),
+        ('asignacion', 'Asignación'),
     ]
 
     destinatario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notificaciones')

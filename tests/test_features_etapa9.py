@@ -961,7 +961,191 @@ class TestSLAPriority:
         assert response_agent.status_code == 200
         # Agent sees both vencidos
         assert response_agent.context['indicadores']['vencidos'] == 2
+from django.core import mail
+from django.core.exceptions import ValidationError
+from django.contrib.auth import get_user_model
+from tickets.services import asignar_agente, derivar_ticket, reasignar_sector
+from tickets.models import HistorialTicket, Notificacion
 
+@pytest.mark.django_db
+class TestAgenteAsignacion:
+    def test_asignar_agente_exitoso(self, init_data, django_capture_on_commit_callbacks):
+        """
+        Verify successful assignment, audit log, and in-app + email notification.
+        """
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI"
+        )
+        
+        # Clear outbox
+        mail.outbox.clear()
+        
+        with django_capture_on_commit_callbacks(execute=True):
+            asignar_agente(ticket, init_data['agent_user'], init_data['dir_user'])
+            
+        ticket.refresh_from_db()
+        assert ticket.agente_asignado == init_data['agent_user']
+        
+        # Audit log verification
+        audit = HistorialTicket.objects.filter(ticket=ticket, tipo='asignacion').first()
+        assert audit is not None
+        assert audit.valor_anterior == '—'
+        assert audit.valor_nuevo == init_data['agent_user'].email
+        
+        # Notification verification (in-app)
+        notif = Notificacion.objects.filter(destinatario=init_data['agent_user'], tipo='asignacion').first()
+        assert notif is not None
+        assert f"ticket #{ticket.id}" in notif.mensaje
+        
+        # Email notification verification
+        assert len(mail.outbox) == 1
+        assert init_data['agent_user'].email in mail.outbox[0].to
 
+    def test_asignar_agente_no_auto_notificar_self(self, init_data, django_capture_on_commit_callbacks):
+        """
+        If the agent assigns themselves, no notification is sent.
+        """
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI"
+        )
+        
+        mail.outbox.clear()
+        Notificacion.objects.all().delete()
+        
+        with django_capture_on_commit_callbacks(execute=True):
+            # agent_user assigns themselves (they are allowed because they belong to sec_ti)
+            asignar_agente(ticket, init_data['agent_user'], init_data['agent_user'])
+            
+        ticket.refresh_from_db()
+        assert ticket.agente_asignado == init_data['agent_user']
+        
+        # No notifications
+        assert Notificacion.objects.filter(destinatario=init_data['agent_user'], tipo='asignacion').count() == 0
+        assert len(mail.outbox) == 0
 
+    def test_asignar_agente_rechazo_sector_ajeno(self, init_data):
+        """
+        Reject assignment if the agent does not belong to the ticket's sector.
+        """
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI"
+        )
+        
+        # Dynamically create maint_agent belonging to Mantenimiento sector
+        maint_agent = get_user_model().objects.create(
+            username="maint_agent@13dejulio.edu.ar",
+            email="maint_agent@13dejulio.edu.ar",
+            rol="agente"
+        )
+        maint_agent.sectores.add(init_data['sec_maint'])
+        
+        with pytest.raises(ValidationError) as excinfo:
+            asignar_agente(ticket, maint_agent, init_data['dir_user'])
+        assert "El agente no pertenece al sector del ticket" in str(excinfo.value)
 
+    def test_asignar_agente_rechazo_actor_permisos(self, init_data):
+        """
+        Verify that unauthorized actors (solicitante, agent of another sector) cannot assign.
+        """
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI"
+        )
+        
+        # Dynamically create maint_agent belonging to Mantenimiento sector
+        maint_agent = get_user_model().objects.create(
+            username="maint_agent@13dejulio.edu.ar",
+            email="maint_agent@13dejulio.edu.ar",
+            rol="agente"
+        )
+        maint_agent.sectores.add(init_data['sec_maint'])
+        
+        # Solicitante tries to assign
+        with pytest.raises(ValidationError) as excinfo:
+            asignar_agente(ticket, init_data['agent_user'], init_data['solic1'])
+        assert "No tienes permisos" in str(excinfo.value)
+        
+        # Agent of other sector tries to assign
+        with pytest.raises(ValidationError) as excinfo:
+            asignar_agente(ticket, init_data['agent_user'], maint_agent)
+        assert "No tienes permisos" in str(excinfo.value)
+
+    def test_auto_clear_on_derivation_and_reasignment(self, init_data):
+        """
+        Deriving or reassigning a ticket to another sector must clear the assigned agent to None
+        and audit this auto-clear in HistorialTicket.
+        """
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI"
+        )
+        asignar_agente(ticket, init_data['agent_user'], init_data['dir_user'])
+        assert ticket.agente_asignado == init_data['agent_user']
+        
+        # Derivar to maintenance sector
+        derivar_ticket(ticket, init_data['sec_maint'], init_data['dir_user'])
+        ticket.refresh_from_db()
+        assert ticket.agente_asignado is None
+        
+        # Check auto-clear audit log (ordered by -creado_en desc, so the latest is first)
+        audit = HistorialTicket.objects.filter(ticket=ticket, tipo='asignacion').first()
+        assert audit is not None
+        assert audit.valor_anterior == init_data['agent_user'].email
+        assert audit.valor_nuevo == '—'
+
+    def test_desasignar(self, init_data, django_capture_on_commit_callbacks):
+        """
+        Deassigning (agente=None) clears the field, audits the change, and does NOT notify.
+        """
+        ticket = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI"
+        )
+        asignar_agente(ticket, init_data['agent_user'], init_data['dir_user'])
+        
+        mail.outbox.clear()
+        Notificacion.objects.all().delete()
+        
+        with django_capture_on_commit_callbacks(execute=True):
+            asignar_agente(ticket, None, init_data['dir_user'])
+            
+        ticket.refresh_from_db()
+        assert ticket.agente_asignado is None
+        
+        # Audit log exists (latest is first)
+        audit = HistorialTicket.objects.filter(ticket=ticket, tipo='asignacion').first()
+        assert audit.valor_anterior == init_data['agent_user'].email
+        assert audit.valor_nuevo == '—'
+        
+        # NO notifications sent
+        assert Notificacion.objects.filter(tipo='asignacion').count() == 0
+        assert len(mail.outbox) == 0
+
+    def test_filtro_asignados_a_mi(self, init_data, client):
+        """
+        Verify the list filter 'asignados_a_mi=true' respects scopes and returns correct records.
+        """
+        # Ticket 1: TI, assigned to agent_user
+        t1 = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI 1"
+        )
+        asignar_agente(t1, init_data['agent_user'], init_data['dir_user'])
+        
+        # Ticket 2: TI, not assigned
+        t2 = Ticket.objects.create(
+            autor=init_data['solic1'], sector=init_data['sec_ti'], titulo="Ticket TI 2"
+        )
+        
+        # Login as agent_user
+        client.force_login(init_data['agent_user'])
+        
+        # Without filter: sees both
+        response = client.get(reverse('tickets_list'))
+        assert response.status_code == 200
+        tickets = response.context['tickets']
+        assert t1 in tickets
+        assert t2 in tickets
+        
+        # With filter: sees only assigned to themselves
+        response_filtered = client.get(reverse('tickets_list') + '?asignados_a_mi=true')
+        assert response_filtered.status_code == 200
+        tickets_filtered = response_filtered.context['tickets']
+        assert t1 in tickets_filtered
+        assert t2 not in tickets_filtered

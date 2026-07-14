@@ -2,7 +2,7 @@ from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from .models import Ticket, Comentario, HistorialTicket, Notificacion
-from .permissions import es_gestor_o_autor
+from .permissions import es_gestor_o_autor, puede_asignar_agente
 
 from django.core.mail import send_mail
 from django.conf import settings
@@ -218,6 +218,17 @@ def derivar_ticket(ticket, nuevo_sector, actor):
         else:
             raise ValidationError("No tienes permisos para derivar este ticket.")
 
+    # Audit auto-clear of agent if present
+    if ticket.agente_asignado:
+        HistorialTicket.objects.create(
+            ticket=ticket,
+            actor=actor,
+            tipo='asignacion',
+            valor_anterior=ticket.agente_asignado.email,
+            valor_nuevo='—'
+        )
+    ticket.agente_asignado = None
+
     # Apply change
     ticket.sector = nuevo_sector
     ticket.derivado_desde_sector = old_sector
@@ -253,6 +264,17 @@ def reasignar_sector(ticket, nuevo_sector, actor):
     # Explicit directivo check
     if not (actor.rol == 'directivo' or actor.es_superadmin):
         raise ValidationError("Solo un directivo puede reasignar un ticket de forma administrativa.")
+
+    # Audit auto-clear of agent if present
+    if ticket.agente_asignado:
+        HistorialTicket.objects.create(
+            ticket=ticket,
+            actor=actor,
+            tipo='asignacion',
+            valor_anterior=ticket.agente_asignado.email,
+            valor_nuevo='—'
+        )
+    ticket.agente_asignado = None
 
     # Apply change
     ticket.sector = nuevo_sector
@@ -294,3 +316,60 @@ def agregar_comentario(ticket, autor, texto):
     create_notifications(ticket, autor, 'comentario', mensaje)
 
     return comentario
+
+
+@transaction.atomic
+def asignar_agente(ticket, agente, actor):
+    """
+    Assigns an agent to a ticket. If agente is None, it deassigns the ticket.
+    """
+    # 1. Authorization check
+    if not puede_asignar_agente(actor, ticket):
+        raise ValidationError("No tienes permisos para asignar agentes en este ticket.")
+        
+    # 2. Validation check of the new agent
+    if agente is not None:
+        if agente.rol != 'agente':
+            raise ValidationError("El usuario asignado debe tener el rol de agente.")
+        if not agente.sectores.filter(id=ticket.sector_id).exists():
+            raise ValidationError("El agente no pertenece al sector del ticket.")
+            
+    old_agente = ticket.agente_asignado
+    if old_agente == agente:
+        return ticket
+        
+    # Apply change
+    ticket.agente_asignado = agente
+    ticket.save()
+    
+    # Audit log
+    old_email = old_agente.email if old_agente else '—'
+    new_email = agente.email if agente else '—'
+    
+    HistorialTicket.objects.create(
+        ticket=ticket,
+        actor=actor,
+        tipo='asignacion',
+        valor_anterior=old_email,
+        valor_nuevo=new_email
+    )
+    
+    # Notify only if a new agent was assigned (agente is not None) AND actor is not assigning themselves
+    if agente is not None and actor != agente:
+        mensaje = f"Fuiste asignado como agente al ticket #{ticket.id} por {actor.first_name or actor.email}."
+        # Generate Notification
+        Notificacion.objects.create(
+            destinatario=agente,
+            ticket=ticket,
+            tipo='asignacion',
+            mensaje=mensaje
+        )
+        
+        # Enqueue email notification post-commit
+        subject = f"[Tiketrece] Ticket #{ticket.id} — asignación de agente"
+        recipients_list = [agente]
+        
+        # We call the existing send_emails_safe in services.py
+        transaction.on_commit(lambda: send_emails_safe(recipients_list, ticket, subject, mensaje))
+        
+    return ticket

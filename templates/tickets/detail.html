@@ -28,7 +28,7 @@
         </div>
         
         <!-- Actions Panel (Based on Permissions) -->
-        {% if puede_cambiar_estado or puede_cambiar_prioridad or puede_derivar or puede_reasignar %}
+        {% if puede_cambiar_estado or puede_cambiar_prioridad or puede_derivar or puede_reasignar or puede_asignar_agente %}
         <div class="card">
             <h3 class="card-title" style="color: var(--text-primary);">⚙️ Acciones de Gestión</h3>
             
@@ -90,6 +90,21 @@
                         {% if s.id != ticket.sector_id %}
                         <option value="{{ s.id }}">{{ s.nombre }}</option>
                         {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                
+                <!-- Assign Agent -->
+                {% if puede_asignar_agente %}
+                <div class="form-group">
+                    <label>Asignar Agente:</label>
+                    <select name="agente_id" hx-post="{% url 'asignar_agente' ticket.id %}" hx-swap="none" class="form-control">
+                        <option value="">— Sin asignar —</option>
+                        {% for agent in agentes_sector %}
+                        <option value="{{ agent.id }}" {% if ticket.agente_asignado == agent %}selected{% endif %}>
+                            {{ agent.first_name|default:agent.username }} ({{ agent.email }})
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -165,6 +180,17 @@
                 <div class="meta-row">
                     <span class="label">Autor:</span>
                     <span class="val" style="font-size: 0.85rem; word-break: break-all;">{{ ticket.autor.email }}</span>
+                </div>
+                
+                <div class="meta-row">
+                    <span class="label">Agente asignado:</span>
+                    <span class="val" style="font-size: 0.85rem; word-break: break-all;">
+                        {% if ticket.agente_asignado %}
+                            👤 {{ ticket.agente_asignado.first_name|default:ticket.agente_asignado.username }} ({{ ticket.agente_asignado.email }})
+                        {% else %}
+                            <span style="color: var(--text-secondary); font-style: italic;">— Sin asignar —</span>
+                        {% endif %}
+                    </span>
                 </div>
                 
                 <div class="meta-row">

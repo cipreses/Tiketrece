@@ -15,7 +15,8 @@ from tickets.permissions import (
     puede_cambiar_prioridad,
     puede_derivar_ticket,
     puede_reasignar_sector,
-    es_gestor_o_autor
+    es_gestor_o_autor,
+    puede_asignar_agente
 )
 from tickets.services import (
     crear_ticket,
@@ -23,7 +24,8 @@ from tickets.services import (
     cambiar_prioridad,
     derivar_ticket,
     reasignar_sector,
-    agregar_comentario
+    agregar_comentario,
+    asignar_agente
 )
 from usuarios.views import directivo_required
 
@@ -94,6 +96,7 @@ def tickets_list_view(request):
     autor_email = request.GET.get('autor')
     q = request.GET.get('q', '').strip()
     vencidos_only = request.GET.get('vencidos') == 'true'
+    asignados_a_mi = request.GET.get('asignados_a_mi') == 'true'
     
     if sector_id:
         tickets = tickets.filter(sector_id=sector_id)
@@ -107,10 +110,12 @@ def tickets_list_view(request):
         tickets = tickets.filter(Q(titulo__icontains=q) | Q(descripcion__icontains=q))
     if vencidos_only:
         tickets = filtrar_vencidos_query(tickets)
+    if asignados_a_mi:
+        tickets = tickets.filter(agente_asignado=request.user)
         
     # Tickets are ordered by updated_at desc by default (defined in Meta)
-    # Prefetch sector and autor to avoid N+1 queries during list rendering
-    tickets = tickets.select_related('sector', 'autor')
+    # Prefetch sector, autor and assigned agent to avoid N+1 queries
+    tickets = tickets.select_related('sector', 'autor', 'agente_asignado')
     
     sectores = Sector.objects.filter(activo=True)
     
@@ -129,7 +134,8 @@ def tickets_list_view(request):
         'f_prioridad': prioridad,
         'f_autor': autor_email,
         'f_q': q,
-        'f_vencidos': vencidos_only
+        'f_vencidos': vencidos_only,
+        'f_asignados_a_mi': asignados_a_mi
     })
 
 @login_required
@@ -175,7 +181,9 @@ def ticket_detail_view(request, ticket_id):
         'puede_cambiar_prioridad': puede_cambiar_prioridad(request.user, ticket),
         'puede_derivar': puede_derivar_ticket(request.user, ticket),
         'puede_reasignar': puede_reasignar_sector(request.user, ticket),
-        'puede_subir_adjuntos': es_gestor_o_autor(request.user, ticket)
+        'puede_subir_adjuntos': es_gestor_o_autor(request.user, ticket),
+        'puede_asignar_agente': puede_asignar_agente(request.user, ticket),
+        'agentes_sector': ticket.sector.agentes.filter(rol='agente', is_active=True)
     }
     
     return render(request, 'tickets/detail.html', context)
@@ -363,6 +371,7 @@ def export_tickets_csv_view(request):
     autor_email = request.GET.get('autor')
     q = request.GET.get('q', '').strip()
     vencidos_only = request.GET.get('vencidos') == 'true'
+    asignados_a_mi = request.GET.get('asignados_a_mi') == 'true'
     
     if sector_id:
         tickets = tickets.filter(sector_id=sector_id)
@@ -376,9 +385,11 @@ def export_tickets_csv_view(request):
         tickets = tickets.filter(Q(titulo__icontains=q) | Q(descripcion__icontains=q))
     if vencidos_only:
         tickets = filtrar_vencidos_query(tickets)
+    if asignados_a_mi:
+        tickets = tickets.filter(agente_asignado=request.user)
         
     # Ordered by updated_at desc and prefetch relations
-    tickets = tickets.select_related('sector', 'autor').order_by('-actualizado_en')
+    tickets = tickets.select_related('sector', 'autor', 'agente_asignado').order_by('-actualizado_en')
     
     def csv_rows():
         # Excel UTF-8 BOM so Excel opens it with correct accent chars automatically
@@ -566,6 +577,35 @@ def sla_config_view(request):
     return render(request, 'tickets/sla_config.html', {
         'prioridades_sla': prioridades_sla
     })
+
+
+@login_required
+@require_POST
+def asignar_agente_view(request, ticket_id):
+    ticket = get_object_or_404(Ticket, pk=ticket_id)
+    if not puede_asignar_agente(request.user, ticket):
+        return HttpResponseForbidden("No tienes permisos para asignar agentes a este ticket.")
+        
+    agente_id = request.POST.get('agente_id', '').strip()
+    
+    agente = None
+    if agente_id:
+        from django.contrib.auth import get_user_model
+        Usuario = get_user_model()
+        agente = get_object_or_404(Usuario, pk=agente_id)
+        
+    try:
+        asignar_agente(ticket, agente, request.user)
+        if agente:
+            messages.success(request, f"Ticket #{ticket.id} asignado a {agente.email} exitosamente.")
+        else:
+            messages.success(request, f"Ticket #{ticket.id} desasignado exitosamente.")
+    except ValidationError as e:
+        messages.error(request, e.message)
+    except Exception as e:
+        messages.error(request, f"Error al asignar agente: {str(e)}")
+        
+    return HttpResponse(status=204, headers={'HX-Refresh': 'true'})
 
 
 

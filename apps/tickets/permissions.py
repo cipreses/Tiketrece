@@ -105,3 +105,13 @@ def puede_gestionar_roles(usuario):
     if not usuario.is_authenticated:
         return False
     return usuario.rol == 'directivo' or usuario.es_superadmin
+
+
+def puede_asignar_agente(usuario, ticket):
+    if not usuario.is_authenticated:
+        return False
+    if usuario.rol == 'directivo' or usuario.es_superadmin:
+        return True
+    if usuario.rol == 'agente':
+        return usuario.sectores.filter(id=ticket.sector_id).exists()
+    return False

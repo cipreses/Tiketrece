@@ -46,6 +46,7 @@ urlpatterns = [
     path('tickets/<int:ticket_id>/derivar/', ticket_views.derivar_ticket_view, name='derivar_ticket'),
     path('tickets/<int:ticket_id>/reasignar/', ticket_views.reasignar_sector_view, name='reasignar_sector'),
     path('tickets/<int:ticket_id>/comentar/', ticket_views.agregar_comentario_view, name='agregar_comentario'),
+    path('tickets/<int:ticket_id>/asignar/', ticket_views.asignar_agente_view, name='asignar_agente'),
     
     # Sectores
     path('sectores/', sector_views.sectores_list_view, name='sectores_list'),
