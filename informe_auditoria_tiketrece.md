@@ -2,7 +2,7 @@
 
 - **Proyecto:** Tiketrece — Sistema de Tickets de Servicios (Escuela 13 de Julio)
 - **Stack:** Django 5.2 · PostgreSQL 16 · HTMX · `google-auth` (OAuth 2.0 / OIDC)
-- **Commits auditados:** `7d2ecef` (MVP + seguridad) · `b081bb9` (Etapa 9 P1) · `745492e`+`f381a6a`+`461a565` (Etapa 9 P2) · `61287c9` (adjuntos al crear) · `1513112` (hardening prod) · base `4e7c38c`
+- **Commits auditados:** `7d2ecef` (MVP + seguridad) · `b081bb9` (Etapa 9 P1) · `745492e`+`f381a6a`+`461a565`+`61287c9` (Etapa 9 P2) · `1513112` (hardening prod) · `cff6470`+`fd4c29d` (mobile B-01) · `12c2a0b` (email) · `3292425` (SLA) · `961f304` (asignación) · base `4e7c38c`
 - **Fecha:** 2026-07-13
 - **Auditor:** Claude (control independiente; no participó del desarrollo)
 - **Documentos de referencia:** `spec_sistema_tickets_v2.md`, acta de aprobación Etapa 1
@@ -147,21 +147,58 @@ Verificación del auditor:
 - `manage.py check --deploy --fail-level WARNING` con `DEBUG=False` + clave fuerte:
   **"System check identified no issues"** — deploy checks 100% limpios.
 
-## 9. Conclusión
+## 9. Iteraciones post-hardening · `cff6470`+`fd4c29d` (mobile), `12c2a0b` (email), `3292425` (SLA), `961f304` (asignación)
 
-El MVP (Etapa 8), la **Etapa 9 completa** (búsqueda + export CSV, notificaciones,
-adjuntos y adjuntos al crear) y el **hardening de producción** fueron auditados y
-aprobados. Todos los hallazgos de seguridad detectados por el auditor —state CSRF
-constante, CSV formula injection, `MEDIA_ROOT` sin configurar— fueron corregidos y
-verificados. La base es sólida, auditable y con cobertura de tests de los flujos
-críticos (**51/51 en verde** contra PostgreSQL real) y los deploy checks de Django
-limpios. **Apto para uso interno** una vez configurada la OAuth App de producción y
-realizado el despliegue.
+**Estado: ✅ TODAS APROBADAS, sin observaciones abiertas.**
+
+**Mobile-friendly / B-01 (`cff6470` + `fd4c29d`):** rediseño responsive verificado por
+el auditor con capturas a 390px (dashboard/listado/detalle/crear): tabla→tarjetas,
+detalle en una columna, formularios con área de toque cómoda, sin scroll horizontal
+(`scrollWidth = innerWidth`). Hallazgos de UX resueltos: encabezado (`.main-header`)
+que se superponía, valores del detalle recortados, botón "Exportar CSV" duplicado, y
+file input nativo reemplazado por uno custom en español.
+
+**Notificaciones por email (`12c2a0b`):** reusa los destinatarios de las notificaciones
+in-app; envío **post-commit** (`transaction.on_commit`) y aislado por `try/except` por
+destinatario (un SMTP caído no rompe ni revierte la operación del ticket). Opt-out por
+usuario (`recibir_emails`), `EMAIL_TIMEOUT`, console backend en dev / SMTP por env en
+prod. Tests con `django_capture_on_commit_callbacks` (sin eso, `on_commit` no corre en
+el test y el `outbox` queda vacío).
+
+**SLA por prioridad — Nivel A (`3292425`):** tiempos objetivo configurables
+(`PrioridadSLA` + `seed_sla`, editables por directivo), estado calculado dinámicamente
+(`@property`, sin persistir). Filtro "vencidos" y contador implementados como
+**consulta DB** por umbral de `creado_en` (no sobre la `@property`, que daría
+`FieldError`), con `timezone.now()` y **alcance primero** en listado/dashboard/export.
+Alertas por tiempo (Nivel B) quedan para el despliegue (requieren cron).
+
+**Reasignación a agente específico (`961f304`):** `Ticket.agente_asignado` con
+validación de que el agente pertenece al sector + autorización del actor;
+**invariante**: se limpia a `None` al derivar/reasignar de sector (auditado).
+Notificación + email **solo al agente asignado** (skip en self-assign/desasignación).
+Filtro "asignados a mí" sobre alcance.
+
+**Suite de tests:** **66/66 en verde** contra PostgreSQL real.
+
+## 10. Conclusión
+
+El MVP (Etapa 8), la **Etapa 9** (búsqueda + export CSV, notificaciones in-app y por
+email, adjuntos, adjuntos al crear, SLA por prioridad y reasignación a agente), el
+**rediseño mobile** y el **hardening de producción** fueron auditados y aprobados.
+Todos los hallazgos de seguridad detectados por el auditor —state CSRF constante, CSV
+formula injection, `MEDIA_ROOT` sin configurar— y los de UX del rediseño mobile fueron
+corregidos y verificados. La base es sólida, auditable y con cobertura de tests de los
+flujos críticos (**66/66 en verde** contra PostgreSQL real) y los deploy checks de
+Django limpios. **Apto para uso interno** una vez configurada la OAuth App de
+producción y realizado el despliegue.
 
 ### Pendientes que dependen del usuario (no bloquean la aprobación técnica)
 
 1. Crear la OAuth App en Google Cloud Console y cargar `GOOGLE_CLIENT_ID` /
    `GOOGLE_CLIENT_SECRET` + redirect URI de producción (https).
 2. Definir dominio/URL de despliegue y cargar `ALLOWED_HOSTS` / `CSRF_TRUSTED_ORIGINS`.
-3. Desplegar según la receta (Proxmox + Nginx/TLS, o VPN/Cloudflare Access); en prod
-   `DEBUG=False`, `ENABLE_MOCK_AUTH=False`, `SECRET_KEY` fuerte.
+3. Configurar SMTP real (`EMAIL_*`) y `SITE_URL` para los emails; correr `seed_sla`
+   y `seed_sectors`.
+4. Desplegar según la receta (Proxmox + Nginx/TLS, o VPN/Cloudflare Access); en prod
+   `DEBUG=False`, `ENABLE_MOCK_AUTH=False`, `SECRET_KEY` fuerte. La alerta de SLA por
+   vencimiento (Nivel B, vía cron) se suma en esta etapa.
