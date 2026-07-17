@@ -6,10 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Sistema de Tickets{% endblock %} | 13 de Julio</title>
     
-    <!-- Outfit Google Font -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Script anti-flash (FOUC) -->
+    <script>
+        (function(){ try {
+          var t = localStorage.getItem('tiketrece-theme')
+               || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark':'light');
+          document.documentElement.setAttribute('data-theme', t);
+        } catch(e){} })();
+    </script>
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}">
@@ -23,40 +28,128 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    <!-- SVG sprite with inline stroke/currentColor icons -->
+    <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+      <symbol id="icon-dashboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="9" rx="1"></rect>
+        <rect x="14" y="3" width="7" height="5" rx="1"></rect>
+        <rect x="14" y="12" width="7" height="9" rx="1"></rect>
+        <rect x="3" y="16" width="7" height="5" rx="1"></rect>
+      </symbol>
+      <symbol id="icon-ticket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 8.5V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3.5A2.5 2.5 0 0 0 18.5 11a2.5 2.5 0 0 0 2.5 2.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3.5A2.5 2.5 0 0 0 5.5 13 2.5 2.5 0 0 0 3 10.5V8.5z"></path>
+        <line x1="9" y1="3" x2="9" y2="21" stroke-dasharray="4"></line>
+      </symbol>
+      <symbol id="icon-sector" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+        <line x1="9" y1="22" x2="9" y2="16"></line>
+        <line x1="15" y1="22" x2="15" y2="16"></line>
+        <line x1="9" y1="16" x2="15" y2="16"></line>
+        <path d="M8 6h2v2H8V6zm6 0h2v2h-2V6zm-6 4h2v2H8v-2zm6 0h2v2h-2v-2z"></path>
+      </symbol>
+      <symbol id="icon-usuarios" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+      </symbol>
+      <symbol id="icon-reloj" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polyline points="12 6 12 12 16 14"></polyline>
+      </symbol>
+      <symbol id="icon-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+        <polyline points="16 17 21 12 16 7"></polyline>
+        <line x1="21" y1="12" x2="9" y2="12"></line>
+      </symbol>
+      <symbol id="icon-campana" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </symbol>
+      <symbol id="icon-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </symbol>
+      <symbol id="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </symbol>
+      <symbol id="icon-filtro" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+      </symbol>
+      <symbol id="icon-descargar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </symbol>
+      <symbol id="icon-buscar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </symbol>
+      <symbol id="icon-bandera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+        <line x1="4" y1="22" x2="4" y2="15"></line>
+      </symbol>
+      <symbol id="icon-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+      </symbol>
+      <symbol id="icon-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </symbol>
+      <symbol id="icon-sol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </symbol>
+      <symbol id="icon-luna" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </symbol>
+    </svg>
+
     <div class="app-container">
         <!-- Sidebar Navigation -->
         {% if user.is_authenticated and user.estado_aprobacion == 'aprobado' %}
         <aside class="sidebar">
             <div class="logo">
-                <span>🎫</span> <span class="logo-text">Tike<span class="logo-middle-t">T</span><span class="logo-accent">rece</span></span>
+                <svg class="icon" aria-hidden="true" style="width: 1.3em; height: 1.3em;"><use href="#icon-ticket"></use></svg>
+                <span class="logo-text">Tike<span class="logo-middle-t">T</span><span class="logo-accent">rece</span></span>
             </div>
             
             <nav class="nav-container">
                 <ul class="nav-menu">
                     <li class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
                         <a href="{% url 'dashboard' %}">
-                            📊 Dashboard
+                            <svg class="icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg> Dashboard
                         </a>
                     </li>
                     <li class="nav-item {% if request.resolver_match.url_name == 'tickets_list' or request.resolver_match.url_name == 'ticket_detail' %}active{% endif %}">
                         <a href="{% url 'tickets_list' %}">
-                            🎟️ Tickets
+                            <svg class="icon" aria-hidden="true"><use href="#icon-ticket"></use></svg> Tickets
                         </a>
                     </li>
                     {% if user.rol == 'directivo' or user.es_superadmin %}
                     <li class="nav-item {% if request.resolver_match.url_name == 'sectores_list' %}active{% endif %}">
                         <a href="{% url 'sectores_list' %}">
-                            🏢 Sectores (Setup)
+                            <svg class="icon" aria-hidden="true"><use href="#icon-sector"></use></svg> Sectores (Setup)
                         </a>
                     </li>
                     <li class="nav-item {% if request.resolver_match.url_name == 'usuarios_list' %}active{% endif %}">
                         <a href="{% url 'usuarios_list' %}">
-                            👥 Usuarios & Roles
+                            <svg class="icon" aria-hidden="true"><use href="#icon-usuarios"></use></svg> Usuarios & Roles
                         </a>
                     </li>
                     <li class="nav-item {% if request.resolver_match.url_name == 'sla_config' %}active{% endif %}">
                         <a href="{% url 'sla_config' %}">
-                            ⏱️ Configurar SLA
+                            <svg class="icon" aria-hidden="true"><use href="#icon-reloj"></use></svg> Configurar SLA
                         </a>
                     </li>
                     {% endif %}
@@ -68,8 +161,8 @@
                     <span class="user-name">{{ user.first_name }}</span>
                     <span class="user-role">{{ user.rol }}</span>
                 </div>
-                <a href="{% url 'logout' %}" class="btn btn-secondary w-full" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
-                    🚪 Cerrar Sesión
+                <a href="{% url 'logout' %}" class="btn btn-secondary w-full" style="padding: 0.5rem 1rem; font-size: 0.85rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-logout"></use></svg> Cerrar Sesión
                 </a>
             </div>
         </aside>
@@ -77,14 +170,18 @@
         
         <!-- Main Panel Content -->
         <main class="main-content">
-            <!-- Topbar with Notification Bell -->
-            {% if user.is_authenticated and user.estado_aprobacion == 'aprobado' %}
-            <header class="main-topbar" style="display: flex; justify-content: flex-end; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; position: relative; z-index: 10;">
+            <!-- Topbar with Theme Toggle and Notification Bell -->
+            <header class="main-topbar" style="display: flex; justify-content: flex-end; align-items: center; gap: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; position: relative; z-index: 10;">
+                <button id="theme-toggle" class="btn btn-secondary" style="padding: 0.5rem; display: flex; align-items: center; justify-content: center; min-height: auto; border-radius: 50%; width: 36px; height: 36px; border: 1px solid var(--border); background-color: var(--bg-card); cursor: pointer;" title="Cambiar tema" type="button">
+                    <svg class="icon sun-icon" style="display: none;"><use href="#icon-sol"></use></svg>
+                    <svg class="icon moon-icon" style="display: none;"><use href="#icon-luna"></use></svg>
+                </button>
+                {% if user.is_authenticated and user.estado_aprobacion == 'aprobado' %}
                 <div id="notification-bell-widget" hx-get="{% url 'notificaciones_dropdown' %}" hx-trigger="load" hx-swap="outerHTML">
                     <!-- Cargando notificaciones... -->
                 </div>
+                {% endif %}
             </header>
-            {% endif %}
 
             <!-- Messages Banner -->
             {% if messages %}
@@ -102,6 +199,19 @@
     </div>
     
     <script>
+        // Theme Toggle script
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleBtn = document.getElementById('theme-toggle');
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', function() {
+                    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+                    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                    document.documentElement.setAttribute('data-theme', newTheme);
+                    localStorage.setItem('tiketrece-theme', newTheme);
+                });
+            }
+        });
+
         // Dismiss notification dropdown when clicking outside
         document.addEventListener('click', function(event) {
             var dropdown = document.getElementById('notif-dropdown');

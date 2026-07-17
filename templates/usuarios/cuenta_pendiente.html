@@ -4,11 +4,11 @@
 
 {% block content %}
 <div class="login-container card" style="max-width: 500px; margin: 4rem auto; text-align: center; padding: 2.5rem;">
-    <div style="font-size: 4rem; margin-bottom: 1.5rem;">
+    <div style="margin-bottom: 1.5rem; display: flex; justify-content: center; align-items: center;">
         {% if user.estado_aprobacion == 'pendiente' %}
-        ⏳
+        <svg class="icon" style="width: 64px; height: 64px; color: var(--warning);" aria-hidden="true"><use href="#icon-reloj"></use></svg>
         {% else %}
-        🚫
+        <svg class="icon" style="width: 64px; height: 64px; color: var(--danger);" aria-hidden="true"><use href="#icon-x"></use></svg>
         {% endif %}
     </div>
     
@@ -35,8 +35,8 @@
         <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
             Conectado como: <strong>{{ user.email }}</strong>
         </p>
-        <a href="{% url 'logout' %}" class="btn btn-secondary w-full" style="padding: 0.75rem; justify-content: center; font-size: 0.95rem;">
-            🚪 Cerrar Sesión
+        <a href="{% url 'logout' %}" class="btn btn-secondary w-full" style="padding: 0.75rem; justify-content: center; font-size: 0.95rem; display: inline-flex; align-items: center; gap: 0.5rem;">
+            <svg class="icon" aria-hidden="true"><use href="#icon-logout"></use></svg> Cerrar Sesión
         </a>
     </div>
 </div>

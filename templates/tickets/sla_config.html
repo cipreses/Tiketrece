@@ -5,13 +5,15 @@
 {% block content %}
 <div class="main-header">
     <div class="main-title-block">
-        <h1>⏱️ Configurar Tiempos de SLA</h1>
+        <h1><svg class="icon" aria-hidden="true"><use href="#icon-reloj"></use></svg> Configurar Tiempos de SLA</h1>
         <p>Establecé los límites de horas para la resolución de tickets por prioridad</p>
     </div>
 </div>
 
 <div class="card" style="max-width: 600px; margin-top: 1rem;">
-    <h3 class="card-title" style="margin-bottom: 1.5rem;">⏱️ Horas Objetivo por Prioridad</h3>
+    <h3 class="card-title" style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+        <svg class="icon" aria-hidden="true"><use href="#icon-reloj"></use></svg> Horas Objetivo por Prioridad
+    </h3>
     
     <form method="post" style="display: flex; flex-direction: column; gap: 1.5rem;">
         {% csrf_token %}
@@ -29,8 +31,8 @@
         {% endfor %}
         
         <div style="margin-top: 1rem; display: flex; justify-content: flex-end;">
-            <button type="submit" class="btn btn-primary" style="min-height: 44px; padding: 0.75rem 2rem;">
-                💾 Guardar Configuración
+            <button type="submit" class="btn btn-primary" style="min-height: 44px; padding: 0.75rem 2rem; display: inline-flex; align-items: center; gap: 0.5rem;">
+                <svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg> Guardar Configuración
             </button>
         </div>
     </form>

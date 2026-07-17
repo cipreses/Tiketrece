@@ -1,6 +1,6 @@
 <div class="notification-bell-widget" id="notification-bell-widget" style="position: relative;">
-  <button class="bell-btn" onclick="document.getElementById('notif-dropdown').classList.toggle('show'); event.stopPropagation();" title="Notificaciones">
-      🔔
+  <button class="bell-btn" onclick="document.getElementById('notif-dropdown').classList.toggle('show'); event.stopPropagation();" title="Notificaciones" type="button">
+      <svg class="icon" aria-hidden="true" style="width: 1.2em; height: 1.2em;"><use href="#icon-campana"></use></svg>
       {% if unread_count > 0 %}
       <span class="unread-badge">{{ unread_count }}</span>
       {% endif %}
@@ -31,7 +31,7 @@
               </div>
               {% if not n.leida %}
               <button class="mark-read-btn" hx-post="{% url 'marcar_leida_notificacion' n.id %}" hx-target="#notification-bell-widget" hx-swap="outerHTML" title="Marcar como leída">
-                  ✓
+                  <svg class="icon" aria-hidden="true" style="width:0.85em; height:0.85em;"><use href="#icon-check"></use></svg>
               </button>
               {% endif %}
           </div>

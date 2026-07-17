@@ -5,12 +5,12 @@
 {% block content %}
 <div class="main-header">
     <div class="main-title-block">
-        <h1>📊 Dashboard</h1>
+        <h1><svg class="icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg> Dashboard</h1>
         <p>Métricas y estado general del sistema de tickets</p>
     </div>
     <div>
         <a href="{% url 'crear_ticket' %}" class="btn btn-primary">
-            ➕ Crear Ticket
+            <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg> Crear Ticket
         </a>
     </div>
 </div>
@@ -23,7 +23,7 @@
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
     <!-- Sectors Table Metrics -->
     <div class="card">
-        <h3 class="card-title">🏢 Tickets por Sector</h3>
+        <h3 class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-sector"></use></svg> Tickets por Sector</h3>
         {% if totales_sector %}
         <div class="table-container">
             <table class="table">
@@ -37,7 +37,7 @@
                     {% for sector, count in totales_sector.items %}
                     <tr>
                         <td>{{ sector }}</td>
-                        <td style="text-align: right; font-weight: 700;">{{ count }}</td>
+                        <td class="tabular-nums" style="text-align: right; font-weight: 700;">{{ count }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -50,7 +50,7 @@
 
     <!-- Priorities Table Metrics -->
     <div class="card">
-        <h3 class="card-title">⚠️ Tickets por Prioridad</h3>
+        <h3 class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-bandera"></use></svg> Tickets por Prioridad</h3>
         <div class="table-container">
             <table class="table">
                 <thead>
@@ -65,7 +65,7 @@
                         <td>
                             <span class="badge badge-{{ prioridad }}">{{ prioridad }}</span>
                         </td>
-                        <td style="text-align: right; font-weight: 700;">{{ count }}</td>
+                        <td class="tabular-nums" style="text-align: right; font-weight: 700;">{{ count }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

@@ -5,7 +5,7 @@
 {% block content %}
 <div class="main-header">
     <div class="main-title-block">
-        <h1>🏢 Administración de Sectores</h1>
+        <h1><svg class="icon" aria-hidden="true"><use href="#icon-sector"></use></svg> Administración de Sectores</h1>
         <p>Configuración y gestión de sectores de destino para tickets</p>
     </div>
 </div>
@@ -13,7 +13,7 @@
 <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
     <!-- Create Sector Card -->
     <div class="card" style="height: fit-content;">
-        <h3 class="card-title" style="color: var(--text-primary);">🏢 Nuevo Sector</h3>
+        <h3 class="card-title" style="color: var(--text-primary);"><svg class="icon" aria-hidden="true"><use href="#icon-sector"></use></svg> Nuevo Sector</h3>
         <form method="POST" action="{% url 'crear_sector' %}" style="display: flex; flex-direction: column; gap: 1rem;">
             {% csrf_token %}
             <div class="form-group">
@@ -32,7 +32,7 @@
 
     <!-- Sectors List Card -->
     <div class="card">
-        <h3 class="card-title" style="color: var(--text-primary);">📋 Listado de Sectores</h3>
+        <h3 class="card-title" style="color: var(--text-primary);"><svg class="icon" aria-hidden="true"><use href="#icon-ticket"></use></svg> Listado de Sectores</h3>
         <div class="table-container">
             <table class="table">
                 <thead>

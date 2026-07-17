@@ -5,18 +5,19 @@
 {% block content %}
 <div class="main-header">
     <div class="main-title-block">
-        <h1>🎟️ Listado de Tickets</h1>
+        <h1><svg class="icon" aria-hidden="true"><use href="#icon-ticket"></use></svg> Listado de Tickets</h1>
         <p>Gestioná y hacé seguimiento de las solicitudes</p>
     </div>
     <div style="display: flex; gap: 1rem; align-items: center;">
         <div id="export-csv-btn-container">
-            <a href="{% url 'export_tickets_csv' %}?{{ request.GET.urlencode }}" class="btn btn-secondary">
-                📥 Exportar CSV
+            <a href="{% url 'export_tickets_csv' %}?{{ request.GET.urlencode }}" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                <svg class="icon" aria-hidden="true"><use href="#icon-descargar"></use></svg> Exportar CSV
             </a>
         </div>
-        <a href="{% url 'crear_ticket' %}" class="btn btn-primary">
-            ➕ Crear Ticket
+        <a href="{% url 'crear_ticket' %}" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg> Crear Ticket
         </a>
+    </div>
 </div>
 
 {% if request.user.rol != 'solicitante' %}
@@ -26,7 +27,7 @@
 <!-- Filters Panel -->
 <div class="card" style="margin-bottom: 2rem;">
     <h3 class="card-title" style="margin-bottom: 1.5rem; font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.5rem;">
-        🔍 Filtrar Solicitudes
+        <svg class="icon" aria-hidden="true"><use href="#icon-filtro"></use></svg> Filtrar Solicitudes
     </h3>
     
     <form hx-get="{% url 'tickets_list' %}" hx-target="#ticket-table-body" hx-trigger="change, keyup delay:300ms" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
@@ -73,12 +74,16 @@
         
         <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; height: 100%; margin-top: 1.5rem;">
             <input type="checkbox" name="vencidos" id="vencidos" value="true" {% if f_vencidos %}checked{% endif %} style="width: 20px; height: 20px; cursor: pointer;">
-            <label for="vencidos" style="cursor: pointer; margin: 0; font-weight: 600;">⚠️ Solo Vencidos</label>
+            <label for="vencidos" style="cursor: pointer; margin: 0; font-weight: 600; display: inline-flex; align-items: center; gap: 0.25rem;">
+                <svg class="icon" style="color:var(--danger);" aria-hidden="true"><use href="#icon-reloj"></use></svg> Solo Vencidos
+            </label>
         </div>
         
         <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; height: 100%; margin-top: 1.5rem;">
             <input type="checkbox" name="asignados_a_mi" id="asignados_a_mi" value="true" {% if f_asignados_a_mi %}checked{% endif %} style="width: 20px; height: 20px; cursor: pointer;">
-            <label for="asignados_a_mi" style="cursor: pointer; margin: 0; font-weight: 600;">👤 Asignados a Mí</label>
+            <label for="asignados_a_mi" style="cursor: pointer; margin: 0; font-weight: 600; display: inline-flex; align-items: center; gap: 0.25rem;">
+                <svg class="icon" aria-hidden="true"><use href="#icon-usuarios"></use></svg> Asignados a Mí
+            </label>
         </div>
         
     </form>

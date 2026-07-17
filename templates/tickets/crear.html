@@ -5,7 +5,7 @@
 {% block content %}
 <div class="main-header">
     <div class="main-title-block">
-        <h1>➕ Nuevo Ticket de Servicio</h1>
+        <h1><svg class="icon" aria-hidden="true"><use href="#icon-plus"></use></svg> Nuevo Ticket de Servicio</h1>
         <p>Abrí una nueva solicitud para que sea resuelta por el sector correspondiente</p>
     </div>
 </div>
@@ -16,7 +16,7 @@
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
             <div class="form-group">
-                <label for="sector_id">🏢 Sector de Destino:</label>
+                <label for="sector_id"><svg class="icon" aria-hidden="true"><use href="#icon-sector"></use></svg> Sector de Destino:</label>
                 <select name="sector_id" id="sector_id" class="form-control" required>
                     <option value="" disabled selected>-- Selecciona un sector --</option>
                     {% for s in sectores %}
@@ -29,7 +29,7 @@
             </div>
             
             <div class="form-group">
-                <label for="prioridad">⚠️ Prioridad:</label>
+                <label for="prioridad"><svg class="icon" aria-hidden="true"><use href="#icon-bandera"></use></svg> Prioridad:</label>
                 <select name="prioridad" id="prioridad" class="form-control" required>
                     {% for key, val in prioridades %}
                     <option value="{{ key }}" {% if f_prioridad %}{% if key == f_prioridad %}selected{% endif %}{% else %}{% if key == 'media' %}selected{% endif %}{% endif %}>{{ val }}</option>
@@ -42,21 +42,21 @@
         </div>
         
         <div class="form-group">
-            <label for="titulo">📌 Título de la Solicitud:</label>
+            <label for="titulo"><svg class="icon" aria-hidden="true"><use href="#icon-ticket"></use></svg> Título de la Solicitud:</label>
             <input type="text" name="titulo" id="titulo" class="form-control" placeholder="Ej: Falla en proyector de aula 4" value="{{ f_titulo|default:'' }}" required maxlength="255">
         </div>
         
         <div class="form-group">
-            <label for="descripcion">📝 Descripción Detallada:</label>
+            <label for="descripcion"><svg class="icon" aria-hidden="true"><use href="#icon-ticket"></use></svg> Descripción Detallada:</label>
             <textarea name="descripcion" id="descripcion" class="form-control" rows="8" placeholder="Por favor describe detalladamente la solicitud, incluyendo ubicación, comportamiento y cualquier detalle relevante para los técnicos..." required>{{ f_descripcion|default:'' }}</textarea>
         </div>
         
         <div class="form-group">
-            <label>📎 Adjuntar Archivos (Opcional):</label>
+            <label><svg class="icon" aria-hidden="true"><use href="#icon-clip"></use></svg> Adjuntar Archivos (Opcional):</label>
             <div class="custom-file-upload">
                 <input type="file" name="archivos" id="archivos_input" class="form-control file-input-hidden" style="font-size: 0.85rem;" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" multiple>
-                <label for="archivos_input" class="btn btn-secondary custom-file-label">
-                    <span>📁 Elegir archivo(s)</span>
+                <label for="archivos_input" class="btn btn-secondary custom-file-label" style="display: inline-flex; align-items: center; gap: 0.25rem;">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-clip"></use></svg> Elegir archivo(s)
                 </label>
                 <span id="file-upload-status" class="file-upload-status">Sin archivos seleccionados</span>
             </div>
