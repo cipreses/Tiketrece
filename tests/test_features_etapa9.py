@@ -1149,3 +1149,175 @@ class TestAgenteAsignacion:
         tickets_filtered = response_filtered.context['tickets']
         assert t1 in tickets_filtered
         assert t2 not in tickets_filtered
+
+
+@pytest.mark.django_db
+class TestUserApprovalGate:
+
+    @pytest.fixture
+    def setup_data(self):
+        # Create a directivo (already approved)
+        directivo = Usuario.objects.create(
+            username='dir@13dejulio.edu.ar',
+            email='dir@13dejulio.edu.ar',
+            google_sub='sub-dir',
+            rol='directivo',
+            estado_aprobacion='aprobado',
+            is_active=True
+        )
+        # Create a solicitante (already approved)
+        approved_solic = Usuario.objects.create(
+            username='sol_app@13dejulio.edu.ar',
+            email='sol_app@13dejulio.edu.ar',
+            google_sub='sub-sol-app',
+            rol='solicitante',
+            estado_aprobacion='aprobado',
+            is_active=True
+        )
+        return {
+            'directivo': directivo,
+            'approved_solic': approved_solic,
+        }
+
+    def test_new_user_login_gets_created_as_pendiente(self):
+        from usuarios.auth_backend import GoogleOAuthBackend
+        backend = GoogleOAuthBackend()
+        
+        user = backend._get_or_create_user(
+            sub='sub-new-user',
+            email='new_user@13dejulio.edu.ar',
+            name='New User'
+        )
+        assert user.estado_aprobacion == 'pendiente'
+        assert user.rol == 'solicitante'
+
+    def test_superadmin_bootstrap_gets_approved_immediately(self, settings):
+        from usuarios.auth_backend import GoogleOAuthBackend
+        settings.SUPERADMIN_EMAILS = ['superadmin@13dejulio.edu.ar']
+        backend = GoogleOAuthBackend()
+        
+        user = backend._get_or_create_user(
+            sub='sub-superadmin',
+            email='superadmin@13dejulio.edu.ar',
+            name='Super Admin'
+        )
+        assert user.estado_aprobacion == 'aprobado'
+        assert user.rol == 'directivo'
+
+    def test_middleware_redirects_unapproved_users(self, client, setup_data):
+        pending_user = Usuario.objects.create(
+            username='pending@13dejulio.edu.ar',
+            email='pending@13dejulio.edu.ar',
+            google_sub='sub-pending',
+            rol='solicitante',
+            estado_aprobacion='pendiente',
+            is_active=True,
+            _keep_pending_in_tests=True
+        )
+        
+        client.force_login(pending_user)
+        
+        # Attempt to access dashboard -> Redirect to cuenta_pendiente
+        response = client.get(reverse('dashboard'))
+        assert response.status_code == 302
+        assert response.url == reverse('cuenta_pendiente')
+        
+        # Attempt to access tickets list -> Redirect
+        response2 = client.get(reverse('tickets_list'))
+        assert response2.status_code == 302
+        
+        # Accessing cuenta_pendiente -> OK
+        response_ok = client.get(reverse('cuenta_pendiente'))
+        assert response_ok.status_code == 200
+        
+        # Accessing logout -> OK
+        response_logout = client.get(reverse('logout'))
+        assert response_logout.status_code == 302
+        
+    def test_directivo_can_approve_pending_user(self, setup_data):
+        from usuarios.services import aprobar_usuario
+        from usuarios.models import HistorialRol
+        
+        pending_user = Usuario.objects.create(
+            username='pending2@13dejulio.edu.ar',
+            email='pending2@13dejulio.edu.ar',
+            google_sub='sub-pending2',
+            rol='solicitante',
+            estado_aprobacion='pendiente',
+            is_active=True,
+            _keep_pending_in_tests=True
+        )
+        
+        aprobar_usuario(pending_user, 'agente', setup_data['directivo'])
+        
+        pending_user.refresh_from_db()
+        assert pending_user.estado_aprobacion == 'aprobado'
+        assert pending_user.rol == 'agente'
+        
+        log = HistorialRol.objects.filter(usuario=pending_user).first()
+        assert log is not None
+        assert log.actor == setup_data['directivo']
+        assert log.rol_anterior == 'solicitante'
+        assert log.rol_nuevo == 'agente'
+
+    def test_directivo_can_reject_pending_user(self, setup_data):
+        from usuarios.services import rechazar_usuario
+        from usuarios.models import HistorialRol
+        
+        pending_user = Usuario.objects.create(
+            username='pending3@13dejulio.edu.ar',
+            email='pending3@13dejulio.edu.ar',
+            google_sub='sub-pending3',
+            rol='solicitante',
+            estado_aprobacion='pendiente',
+            is_active=True,
+            _keep_pending_in_tests=True
+        )
+        
+        rechazar_usuario(pending_user, setup_data['directivo'])
+        
+        pending_user.refresh_from_db()
+        assert pending_user.estado_aprobacion == 'rechazado'
+        assert pending_user.rol == 'solicitante'
+        
+        log = HistorialRol.objects.filter(usuario=pending_user).first()
+        assert log is not None
+        assert log.actor == setup_data['directivo']
+        assert log.rol_nuevo == 'solicitante'
+
+    def test_actions_restricted_to_unapproved_users(self, setup_data):
+        from usuarios.services import aprobar_usuario, rechazar_usuario
+        
+        # Attempt to reject an already approved directivo -> raises ValidationError
+        with pytest.raises(ValidationError) as exc_info:
+            rechazar_usuario(setup_data['directivo'], actor=setup_data['directivo'])
+        assert "ya ha sido aprobado" in str(exc_info.value)
+        
+        # Attempt to approve an already approved user -> raises ValidationError
+        with pytest.raises(ValidationError) as exc_info2:
+            aprobar_usuario(setup_data['approved_solic'], 'directivo', actor=setup_data['directivo'])
+        assert "ya ha sido aprobado" in str(exc_info2.value)
+
+    def test_unauthorized_user_cannot_approve_or_reject(self, setup_data):
+        from usuarios.services import aprobar_usuario, rechazar_usuario
+        
+        pending_user = Usuario.objects.create(
+            username='pending4@13dejulio.edu.ar',
+            email='pending4@13dejulio.edu.ar',
+            google_sub='sub-pending4',
+            rol='solicitante',
+            estado_aprobacion='pendiente',
+            is_active=True,
+            _keep_pending_in_tests=True
+        )
+        
+        # Solicitante tries to approve
+        with pytest.raises(ValidationError) as exc_info:
+            aprobar_usuario(pending_user, 'agente', actor=setup_data['approved_solic'])
+        assert "Solo los directivos" in str(exc_info.value)
+        
+        # Solicitante tries to reject
+        with pytest.raises(ValidationError) as exc_info2:
+            rechazar_usuario(pending_user, actor=setup_data['approved_solic'])
+        assert "Solo los directivos" in str(exc_info2.value)
+

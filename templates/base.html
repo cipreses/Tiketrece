@@ -25,7 +25,7 @@
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
     <div class="app-container">
         <!-- Sidebar Navigation -->
-        {% if user.is_authenticated %}
+        {% if user.is_authenticated and user.estado_aprobacion == 'aprobado' %}
         <aside class="sidebar">
             <div class="logo">
                 <span>🎫</span> <span class="logo-text">Tike<span class="logo-middle-t">T</span><span class="logo-accent">rece</span></span>
@@ -78,7 +78,7 @@
         <!-- Main Panel Content -->
         <main class="main-content">
             <!-- Topbar with Notification Bell -->
-            {% if user.is_authenticated %}
+            {% if user.is_authenticated and user.estado_aprobacion == 'aprobado' %}
             <header class="main-topbar" style="display: flex; justify-content: flex-end; align-items: center; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; position: relative; z-index: 10;">
                 <div id="notification-bell-widget" hx-get="{% url 'notificaciones_dropdown' %}" hx-trigger="load" hx-swap="outerHTML">
                     <!-- Cargando notificaciones... -->

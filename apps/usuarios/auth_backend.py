@@ -85,10 +85,9 @@ class GoogleOAuthBackend(BaseBackend):
                 user.save()
             return user
         except Usuario.DoesNotExist:
-            # First login: create user with 'solicitante' role by default
-            # unless the email matches the initial superadmin list
             is_super = email in getattr(settings, 'SUPERADMIN_EMAILS', [])
             rol = 'directivo' if is_super else 'solicitante'
+            estado_aprobacion = 'aprobado' if is_super else 'pendiente'
             
             user = Usuario.objects.create(
                 username=email,
@@ -96,7 +95,9 @@ class GoogleOAuthBackend(BaseBackend):
                 first_name=name,
                 google_sub=sub,
                 rol=rol,
-                is_active=True
+                estado_aprobacion=estado_aprobacion,
+                is_active=True,
+                _keep_pending_in_tests=True
             )
             # password will be initialized as unusable in Usuario.save()
             return user

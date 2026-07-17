@@ -10,8 +10,9 @@ from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.views.decorators.http import require_POST
 from usuarios.models import Usuario
-from usuarios.services import cambiar_rol, cambiar_estado_activo
+from usuarios.services import cambiar_rol, cambiar_estado_activo, aprobar_usuario, rechazar_usuario
 from sectores.models import Sector
+
 
 def directivo_required(view_func):
     @login_required
@@ -112,9 +113,11 @@ def logout_view(request):
 @directivo_required
 def usuarios_list_view(request):
     usuarios = Usuario.objects.all().order_by('email')
+    usuarios_pendientes = Usuario.objects.filter(estado_aprobacion='pendiente').order_by('email')
     sectores = Sector.objects.filter(activo=True)
     return render(request, 'usuarios/admin.html', {
         'usuarios': usuarios,
+        'usuarios_pendientes': usuarios_pendientes,
         'sectores': sectores,
         'roles': ['solicitante', 'agente', 'directivo']
     })
@@ -186,5 +189,43 @@ def desasignar_sector_view(request, usuario_id):
         messages.success(request, f"Sector {sector.nombre} desasignado de {usuario_afectado.email}.")
     except Exception as e:
         messages.error(request, f"Error al desasignar sector: {str(e)}")
+        
+    return HttpResponse(status=204, headers={'HX-Refresh': 'true'})
+
+
+@login_required
+def cuenta_pendiente_view(request):
+    if request.user.estado_aprobacion == 'aprobado':
+        return redirect('dashboard')
+    return render(request, 'usuarios/cuenta_pendiente.html')
+
+
+@directivo_required
+@require_POST
+def aprobar_usuario_view(request, usuario_id):
+    usuario_afectado = get_object_or_404(Usuario, pk=usuario_id)
+    rol = request.POST.get('rol')
+    try:
+        aprobar_usuario(usuario_afectado, rol, request.user)
+        messages.success(request, f"Usuario {usuario_afectado.email} aprobado con rol {rol} exitosamente.")
+    except ValidationError as e:
+        messages.error(request, e.message)
+    except Exception as e:
+        messages.error(request, f"Error: {str(e)}")
+        
+    return HttpResponse(status=204, headers={'HX-Refresh': 'true'})
+
+
+@directivo_required
+@require_POST
+def rechazar_usuario_view(request, usuario_id):
+    usuario_afectado = get_object_or_404(Usuario, pk=usuario_id)
+    try:
+        rechazar_usuario(usuario_afectado, request.user)
+        messages.success(request, f"Usuario {usuario_afectado.email} rechazado exitosamente.")
+    except ValidationError as e:
+        messages.error(request, e.message)
+    except Exception as e:
+        messages.error(request, f"Error: {str(e)}")
         
     return HttpResponse(status=204, headers={'HX-Refresh': 'true'})

@@ -10,6 +10,60 @@
     </div>
 </div>
 
+{% if usuarios_pendientes %}
+<div class="card" style="border-left: 4px solid var(--accent); margin-bottom: 2rem;">
+    <h3 class="card-title" style="color: var(--accent); display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+        ⏳ Usuarios Pendientes de Aprobación
+    </h3>
+    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">
+        Nuevas cuentas de usuario esperando aprobación. Por favor, selecciona un rol de acceso para aprobarlos o rechaza su solicitud.
+    </p>
+    
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Usuario (Email)</th>
+                    <th>Nombre</th>
+                    <th>Acción: Aprobar con Rol</th>
+                    <th style="text-align: right; padding-right: 1.5rem;">Acción: Rechazar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in usuarios_pendientes %}
+                <tr>
+                    <td>
+                        <span style="font-weight: 700; color: var(--accent);">{{ u.email }}</span>
+                    </td>
+                    <td>{{ u.first_name }}</td>
+                    <td>
+                        <form hx-post="{% url 'aprobar_usuario' u.id %}" hx-swap="none" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <select name="rol" class="form-control" style="padding: 0.25rem 0.5rem; font-size: 0.85rem; width: auto;" required>
+                                <option value="" disabled selected>-- Seleccionar Rol --</option>
+                                <option value="solicitante">Solicitante</option>
+                                <option value="agente">Agente</option>
+                                <option value="directivo">Directivo</option>
+                            </select>
+                            <button type="submit" class="btn btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem; min-height: auto;">
+                                ✓ Aprobar
+                            </button>
+                        </form>
+                    </td>
+                    <td style="text-align: right; padding-right: 1.5rem;">
+                        <form hx-post="{% url 'rechazar_usuario' u.id %}" hx-swap="none" style="display: inline-block;">
+                            <button type="submit" class="btn btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem; min-height: auto; border-color: var(--danger); color: var(--danger);">
+                                ✕ Rechazar
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 <div class="card">
     <h3 class="card-title" style="color: var(--text-primary);">👥 Usuarios del Sistema</h3>
     
@@ -20,6 +74,7 @@
                     <th>Usuario (Email)</th>
                     <th>Nombre</th>
                     <th>Rol del Sistema</th>
+                    <th>Aprobación</th>
                     <th>Sectores Asignados (Solo Agentes)</th>
                     <th>Estado</th>
                 </tr>
@@ -44,6 +99,17 @@
                                 {% endfor %}
                             </select>
                         </form>
+                    </td>
+                    
+                    <!-- Aprobación Status -->
+                    <td>
+                        {% if u.estado_aprobacion == 'aprobado' %}
+                        <span class="badge badge-resuelto" style="font-size: 0.75rem;">Aprobado</span>
+                        {% elif u.estado_aprobacion == 'pendiente' %}
+                        <span class="badge badge-abierto" style="font-size: 0.75rem;">Pendiente</span>
+                        {% else %}
+                        <span class="badge badge-cerrado" style="font-size: 0.75rem;">Rechazado</span>
+                        {% endif %}
                     </td>
                     
                     <!-- Agent Sector Assignments -->
@@ -98,7 +164,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
                         No hay usuarios registrados en el sistema.
                     </td>
                 </tr>

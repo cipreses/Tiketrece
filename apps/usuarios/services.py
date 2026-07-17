@@ -53,3 +53,47 @@ def cambiar_estado_activo(usuario_afectado, is_active, actor):
     usuario_afectado.is_active = is_active
     usuario_afectado.save()
     return usuario_afectado
+
+
+@transaction.atomic
+def aprobar_usuario(usuario_afectado, nuevo_rol, actor):
+    if not (actor.rol == 'directivo' or actor.es_superadmin):
+        raise ValidationError("Solo los directivos pueden aprobar usuarios.")
+    if nuevo_rol not in ['solicitante', 'agente', 'directivo']:
+        raise ValidationError("Rol inválido.")
+    if usuario_afectado.estado_aprobacion == 'aprobado':
+        raise ValidationError("El usuario ya ha sido aprobado. Para cambiar su rol utilice la función de cambio de rol.")
+        
+    old_rol = usuario_afectado.rol
+    usuario_afectado.rol = nuevo_rol
+    usuario_afectado.estado_aprobacion = 'aprobado'
+    usuario_afectado.save()
+    
+    # Audit log
+    HistorialRol.objects.create(
+        usuario=usuario_afectado,
+        actor=actor,
+        rol_anterior=old_rol,
+        rol_nuevo=nuevo_rol
+    )
+    return usuario_afectado
+
+
+@transaction.atomic
+def rechazar_usuario(usuario_afectado, actor):
+    if not (actor.rol == 'directivo' or actor.es_superadmin):
+        raise ValidationError("Solo los directivos pueden rechazar usuarios.")
+    if usuario_afectado.estado_aprobacion == 'aprobado':
+        raise ValidationError("El usuario ya ha sido aprobado y no puede ser rechazado.")
+        
+    usuario_afectado.estado_aprobacion = 'rechazado'
+    usuario_afectado.save()
+    
+    # Audit log
+    HistorialRol.objects.create(
+        usuario=usuario_afectado,
+        actor=actor,
+        rol_anterior=usuario_afectado.rol,
+        rol_nuevo=usuario_afectado.rol
+    )
+    return usuario_afectado

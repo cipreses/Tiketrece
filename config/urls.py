@@ -56,9 +56,12 @@ urlpatterns = [
     path('sectores/<int:sector_id>/activar/', sector_views.activar_sector_view, name='activar_sector'),
     
     # Usuarios
+    path('cuenta-pendiente/', user_views.cuenta_pendiente_view, name='cuenta_pendiente'),
     path('usuarios/', user_views.usuarios_list_view, name='usuarios_list'),
     path('usuarios/<int:usuario_id>/rol/', user_views.cambiar_rol_view, name='cambiar_rol'),
     path('usuarios/<int:usuario_id>/activo/', user_views.cambiar_activo_view, name='cambiar_activo'),
     path('usuarios/<int:usuario_id>/asignar_sector/', user_views.asignar_sector_view, name='asignar_sector'),
     path('usuarios/<int:usuario_id>/desasignar_sector/', user_views.desasignar_sector_view, name='desasignar_sector'),
+    path('usuarios/<int:usuario_id>/aprobar/', user_views.aprobar_usuario_view, name='aprobar_usuario'),
+    path('usuarios/<int:usuario_id>/rechazar/', user_views.rechazar_usuario_view, name='rechazar_usuario'),
 ]
