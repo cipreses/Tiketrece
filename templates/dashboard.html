@@ -15,33 +15,9 @@
     </div>
 </div>
 
-<!-- Indicator Cards -->
-<div class="metrics-grid">
-    <div class="card metric-card border-abierto">
-        <span class="metric-value">{{ indicadores.abiertos }}</span>
-        <span class="metric-label">Abiertos</span>
-    </div>
-    <div class="card metric-card border-en_progreso">
-        <span class="metric-value">{{ indicadores.en_progreso }}</span>
-        <span class="metric-label">En Progreso</span>
-    </div>
-    <div class="card metric-card border-en_espera">
-        <span class="metric-value">{{ indicadores.en_espera }}</span>
-        <span class="metric-label">En Espera</span>
-    </div>
-    <div class="card metric-card border-resuelto">
-        <span class="metric-value">{{ indicadores.resueltos }}</span>
-        <span class="metric-label">Resueltos</span>
-    </div>
-    <div class="card metric-card border-cerrado">
-        <span class="metric-value">{{ indicadores.cerrados }}</span>
-        <span class="metric-label">Cerrados</span>
-    </div>
-    <div class="card metric-card border-vencido">
-        <span class="metric-value">{{ indicadores.vencidos }}</span>
-        <span class="metric-label">Vencidos (Activos)</span>
-    </div>
-</div>
+{% if request.user.rol != 'solicitante' %}
+    {% include 'tickets/partials/_panel_stats.html' %}
+{% endif %}
 
 <!-- Detailed Grid Metrics -->
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">

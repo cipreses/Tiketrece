@@ -1350,3 +1350,71 @@ class TestUserApprovalGate:
         assert log.rol_nuevo == 'agente'
 
 
+@pytest.mark.django_db
+class TestSolicitanteLandingAndStats:
+    
+    @pytest.fixture
+    def setup_users(self):
+        # Solicitante approved user
+        solicitante = Usuario.objects.create(
+            username='solic@13dejulio.edu.ar',
+            email='solic@13dejulio.edu.ar',
+            google_sub='sub-solic',
+            rol='solicitante',
+            estado_aprobacion='aprobado',
+            is_active=True
+        )
+        # Directivo approved user
+        directivo = Usuario.objects.create(
+            username='dire@13dejulio.edu.ar',
+            email='dire@13dejulio.edu.ar',
+            google_sub='sub-dire',
+            rol='directivo',
+            estado_aprobacion='aprobado',
+            is_active=True
+        )
+        return {
+            'solicitante': solicitante,
+            'directivo': directivo,
+        }
+
+    def test_solicitante_redirige_a_crear_ticket_tras_login(self, client, setup_users):
+        client.force_login(setup_users['solicitante'])
+        response = client.get(reverse('login'))
+        response_root = client.get(reverse('root'))
+        
+        assert response.status_code == 302
+        assert response.url == reverse('crear_ticket')
+        assert response_root.status_code == 302
+        assert response_root.url == reverse('crear_ticket')
+
+    def test_directivo_redirige_a_dashboard_tras_login(self, client, setup_users):
+        client.force_login(setup_users['directivo'])
+        response = client.get(reverse('login'))
+        response_root = client.get(reverse('root'))
+        
+        assert response.status_code == 302
+        assert response.url == reverse('dashboard')
+        assert response_root.status_code == 302
+        assert response_root.url == reverse('dashboard')
+
+    def test_listado_solicitante_sin_panel_stats(self, client, setup_users):
+        client.force_login(setup_users['solicitante'])
+        response = client.get(reverse('tickets_list'))
+        
+        assert response.status_code == 200
+        html = response.content.decode('utf-8')
+        assert 'id="panel-stats"' not in html
+        assert 'id="q"' in html
+        assert 'tickets-table' in html
+        
+    def test_listado_directivo_con_panel_stats(self, client, setup_users):
+        client.force_login(setup_users['directivo'])
+        response = client.get(reverse('tickets_list'))
+        
+        assert response.status_code == 200
+        html = response.content.decode('utf-8')
+        assert 'id="panel-stats"' in html
+
+
+

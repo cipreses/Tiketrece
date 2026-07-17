@@ -22,9 +22,14 @@ def directivo_required(view_func):
         return view_func(request, *args, **kwargs)
     return _wrapped_view
 
+def _redirect_by_role(user):
+    if user.rol == 'solicitante':
+        return redirect('crear_ticket')
+    return redirect('dashboard')
+
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect('dashboard')
+        return _redirect_by_role(request.user)
         
     if request.method == 'POST' and getattr(settings, 'ENABLE_MOCK_AUTH', False):
         email = request.POST.get('email', '').strip()
@@ -34,7 +39,7 @@ def login_view(request):
             user = authenticate(request, mock_email=email, mock_name=name)
             if user:
                 auth_login(request, user)
-                return redirect('dashboard')
+                return _redirect_by_role(user)
             else:
                 messages.error(request, "Error de autenticación simulada.")
         except PermissionDenied as e:
@@ -96,7 +101,7 @@ def google_login_callback(request):
         user = authenticate(request, token=id_token)
         if user:
             auth_login(request, user)
-            return redirect('dashboard')
+            return _redirect_by_role(user)
         else:
             raise PermissionDenied("No se pudo iniciar sesión con las credenciales de Google.")
     except PermissionDenied as e:
@@ -196,7 +201,7 @@ def desasignar_sector_view(request, usuario_id):
 @login_required
 def cuenta_pendiente_view(request):
     if request.user.estado_aprobacion == 'aprobado':
-        return redirect('dashboard')
+        return _redirect_by_role(request.user)
     return render(request, 'usuarios/cuenta_pendiente.html')
 
 

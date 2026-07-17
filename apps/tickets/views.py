@@ -123,11 +123,29 @@ def tickets_list_view(request):
     if request.headers.get('HX-Request'):
         return render(request, 'tickets/partials/ticket_rows.html', {'tickets': tickets, 'is_htmx': True})
         
+    indicadores = None
+    if request.user.rol != 'solicitante':
+        tickets_visibles = obtener_tickets_visibles(request.user)
+        totales_estado = {item['estado']: item['count'] for item in tickets_visibles.values('estado').annotate(count=Count('id'))}
+        for estado, _ in Ticket.ESTADOS:
+            totales_estado.setdefault(estado, 0)
+        vencidos_count = filtrar_vencidos_query(tickets_visibles).count()
+        indicadores = {
+            'abiertos': totales_estado.get('abierto', 0),
+            'en_progreso': totales_estado.get('en_progreso', 0),
+            'en_espera': totales_estado.get('en_espera', 0),
+            'resueltos': totales_estado.get('resuelto', 0),
+            'cerrados': totales_estado.get('cerrado', 0),
+            'vencidos': vencidos_count,
+            'total': tickets_visibles.count()
+        }
+
     return render(request, 'tickets/list.html', {
         'tickets': tickets,
         'sectores': sectores,
         'estados': Ticket.ESTADOS,
         'prioridades': Ticket.PRIORIDADES,
+        'indicadores': indicadores,
         # Keep filter values for prepopulating inputs
         'f_sector': sector_id,
         'f_estado': estado,

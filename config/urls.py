@@ -7,6 +7,8 @@ import tickets.views as ticket_views
 
 def root_redirect(request):
     if request.user.is_authenticated:
+        if request.user.rol == 'solicitante':
+            return redirect('crear_ticket')
         return redirect('dashboard')
     return redirect('login')
 

@@ -17,8 +17,11 @@
         <a href="{% url 'crear_ticket' %}" class="btn btn-primary">
             ➕ Crear Ticket
         </a>
-    </div>
 </div>
+
+{% if request.user.rol != 'solicitante' %}
+    {% include 'tickets/partials/_panel_stats.html' %}
+{% endif %}
 
 <!-- Filters Panel -->
 <div class="card" style="margin-bottom: 2rem;">
