@@ -475,7 +475,7 @@ h1, h2, h3, h4 {
 :root[data-theme="dark"] .badge-en_progreso { background-color: rgba(var(--primary-rgb), 0.15); color: var(--primary); border: none; }
 :root[data-theme="dark"] .badge-en_espera { background-color: rgba(var(--warning-rgb), 0.15); color: var(--warning); border: none; }
 :root[data-theme="dark"] .badge-resuelto { background-color: rgba(var(--success-rgb), 0.15); color: var(--success); border: none; }
-:root[data-theme="dark"] .badge-cerrado { background-color: rgba(var(--text-secondary-rgb), 0.15); color: var(--text-secondary); border: none; }
+:root[data-theme="dark"] .badge-cerrado { background-color: rgba(var(--text-secondary-rgb), 0.15); color: #cbd5e1; border: none; }
 
 :root[data-theme="dark"] .badge-baja { background-color: rgba(var(--success-rgb), 0.15); color: var(--success); border: none; }
 :root[data-theme="dark"] .badge-media { background-color: rgba(var(--accent-rgb), 0.15); color: var(--accent); border: none; }
