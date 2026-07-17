@@ -92,13 +92,12 @@
                     
                     <!-- Role Dropdown Selector -->
                     <td>
-                        <form hx-post="{% url 'cambiar_rol' u.id %}" hx-swap="none" style="display:inline-block;">
-                            <select name="rol" class="form-control" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;" onchange="this.form.dispatchEvent(new Event('submit'))">
-                                {% for r in roles %}
-                                <option value="{{ r }}" {% if u.rol == r %}selected{% endif %}>{{ r|capfirst }}</option>
-                                {% endfor %}
-                            </select>
-                        </form>
+                        <select name="rol" class="form-control" style="padding: 0.25rem 0.5rem; font-size: 0.85rem;"
+                                hx-post="{% url 'cambiar_rol' u.id %}" hx-trigger="change" hx-swap="none">
+                            {% for r in roles %}
+                            <option value="{{ r }}" {% if u.rol == r %}selected{% endif %}>{{ r|capfirst }}</option>
+                            {% endfor %}
+                        </select>
                     </td>
                     
                     <!-- Aprobación Status -->
@@ -108,7 +107,20 @@
                         {% elif u.estado_aprobacion == 'pendiente' %}
                         <span class="badge badge-abierto" style="font-size: 0.75rem;">Pendiente</span>
                         {% else %}
-                        <span class="badge badge-cerrado" style="font-size: 0.75rem;">Rechazado</span>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            <span class="badge badge-cerrado" style="font-size: 0.75rem;">Rechazado</span>
+                            <form hx-post="{% url 'aprobar_usuario' u.id %}" hx-swap="none" style="display: flex; align-items: center; gap: 0.25rem;">
+                                <select name="rol" class="form-control" style="padding: 0.15rem 0.35rem; font-size: 0.75rem; width: auto;" required>
+                                    <option value="" disabled selected>-- Rol --</option>
+                                    <option value="solicitante">Solicitante</option>
+                                    <option value="agente">Agente</option>
+                                    <option value="directivo">Directivo</option>
+                                </select>
+                                <button type="submit" class="btn btn-primary" style="padding: 0.15rem 0.5rem; font-size: 0.75rem; min-height: auto;">
+                                    Aprobar
+                                </button>
+                            </form>
+                        </div>
                         {% endif %}
                     </td>
                     
@@ -129,16 +141,15 @@
                             {% endfor %}
                             
                             <!-- Inline Add Sector Form -->
-                            <form hx-post="{% url 'asignar_sector' u.id %}" hx-swap="none" style="display:inline-flex; align-items:center; margin-left: 0.5rem;">
-                                <select name="sector_id" class="form-control" style="padding: 0.15rem 0.35rem; font-size: 0.75rem; width: auto;" onchange="if(this.value) { this.form.dispatchEvent(new Event('submit')) }">
-                                    <option value="" disabled selected>+</option>
-                                    {% for s in sectores %}
-                                    {% if s not in u.sectores.all %}
-                                    <option value="{{ s.id }}">{{ s.nombre }}</option>
-                                    {% endif %}
-                                    {% endfor %}
-                                </select>
-                            </form>
+                            <select name="sector_id" class="form-control" style="padding: 0.15rem 0.35rem; font-size: 0.75rem; width: auto; display: inline-block; margin-left: 0.5rem;"
+                                    hx-post="{% url 'asignar_sector' u.id %}" hx-trigger="change" hx-swap="none">
+                                <option value="" disabled selected>+</option>
+                                {% for s in sectores %}
+                                {% if s not in u.sectores.all %}
+                                <option value="{{ s.id }}">{{ s.nombre }}</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
                         </div>
                         {% else %}
                         <span class="text-muted" style="font-size: 0.85rem; font-style: italic;">N/A</span>

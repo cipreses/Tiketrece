@@ -1321,3 +1321,32 @@ class TestUserApprovalGate:
             rechazar_usuario(pending_user, actor=setup_data['approved_solic'])
         assert "Solo los directivos" in str(exc_info2.value)
 
+    def test_reconsider_rejected_user_flow(self, setup_data):
+        from usuarios.services import aprobar_usuario
+        from usuarios.models import HistorialRol
+        
+        rejected_user = Usuario.objects.create(
+            username='rejected@13dejulio.edu.ar',
+            email='rejected@13dejulio.edu.ar',
+            google_sub='sub-rejected',
+            rol='solicitante',
+            estado_aprobacion='rechazado',
+            is_active=True,
+            _keep_pending_in_tests=True
+        )
+        
+        # Reconsider / approve the rejected user
+        aprobar_usuario(rejected_user, 'agente', setup_data['directivo'])
+        
+        rejected_user.refresh_from_db()
+        assert rejected_user.estado_aprobacion == 'aprobado'
+        assert rejected_user.rol == 'agente'
+        
+        # Check audit log
+        log = HistorialRol.objects.filter(usuario=rejected_user).order_by('-creado_en').first()
+        assert log is not None
+        assert log.actor == setup_data['directivo']
+        assert log.rol_anterior == 'solicitante'
+        assert log.rol_nuevo == 'agente'
+
+
