@@ -219,6 +219,31 @@
                 dropdown.classList.remove('show');
             }
         });
+
+        // Guard permanent to prevent double submissions on native POST forms
+        function preventDoubleSubmit(form) {
+            if (form.getAttribute('data-submitted') === 'true') {
+                return false;
+            }
+            if (form.checkValidity && form.checkValidity() === false) {
+                return true;
+            }
+            form.setAttribute('data-submitted', 'true');
+            const btn = form.querySelector('button[type="submit"]');
+            if (btn) {
+                const svg = btn.querySelector('svg.icon');
+                let iconHtml = '';
+                if (svg) {
+                    svg.classList.add('spin');
+                    iconHtml = svg.outerHTML + ' ';
+                }
+                btn.innerHTML = iconHtml + 'Enviando...';
+                setTimeout(function() {
+                    btn.disabled = true;
+                }, 0);
+            }
+            return true;
+        }
     </script>
     {% block extra_js %}{% endblock %}
 </body>

@@ -14,7 +14,7 @@
     <!-- Create Sector Card -->
     <div class="card" style="height: fit-content;">
         <h3 class="card-title" style="color: var(--text-primary);"><svg class="icon" aria-hidden="true"><use href="#icon-sector"></use></svg> Nuevo Sector</h3>
-        <form method="POST" action="{% url 'crear_sector' %}" style="display: flex; flex-direction: column; gap: 1rem;">
+        <form method="POST" action="{% url 'crear_sector' %}" onsubmit="return preventDoubleSubmit(this);" style="display: flex; flex-direction: column; gap: 1rem;">
             {% csrf_token %}
             <div class="form-group">
                 <label for="nombre">Nombre del Sector:</label>

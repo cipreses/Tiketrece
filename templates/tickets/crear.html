@@ -11,7 +11,7 @@
 </div>
 
 <div class="card" style="max-width: 700px; margin: auto;">
-    <form method="POST" action="{% url 'crear_ticket' %}" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 1.5rem;">
+    <form method="POST" action="{% url 'crear_ticket' %}" enctype="multipart/form-data" onsubmit="return preventDoubleSubmit(this);" style="display: flex; flex-direction: column; gap: 1.5rem;">
         {% csrf_token %}
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">

@@ -1151,3 +1151,14 @@ h1, h2, h3, h4 {
 :root[data-theme="dark"] .badge-sla-cerrado {
     color: var(--text-secondary);
 }
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .spin {
+        animation: spin 1s linear infinite;
+        display: inline-block;
+    }
+}
