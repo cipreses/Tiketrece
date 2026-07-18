@@ -1,4 +1,7 @@
 /* Design System Tokens */
+html {
+    font-size: 15px;
+}
 :root {  /* CLARO (default) */
     --bg-main:      #f4f6f9;
     --bg-card:      #ffffff;
@@ -280,7 +283,7 @@ h1, h2, h3, h4 {
     font-weight: 600;
 }
 .user-role {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: var(--accent);
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -454,7 +457,7 @@ h1, h2, h3, h4 {
     display: inline-flex;
     padding: 0.25rem 0.75rem;
     border-radius: 9999px;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 700;
     text-transform: uppercase;
 }
@@ -752,7 +755,7 @@ h1, h2, h3, h4 {
     right: 2px;
     background-color: var(--danger);
     color: var(--text-primary);
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     font-weight: 800;
     padding: 0.15rem 0.4rem;
     border-radius: 9999px;
@@ -836,7 +839,7 @@ h1, h2, h3, h4 {
     margin-bottom: 0.25rem;
 }
 .notif-time {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
 }
 .mark-read-btn {
@@ -1118,7 +1121,7 @@ h1, h2, h3, h4 {
     border-left: 4px solid var(--danger) !important;
 }
 .badge-sla {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 700;
     padding: 0.25rem 0.5rem;
     border-radius: 9999px;
@@ -1160,5 +1163,20 @@ h1, h2, h3, h4 {
     .spin {
         animation: spin 1s linear infinite;
         display: inline-block;
+    }
+}
+
+/* Tickets Table Compaction (Desktop and Tablet) */
+@media (min-width: 769px) {
+    .tickets-table th, 
+    .tickets-table td {
+        padding: 0.6rem 0.85rem !important; /* ~40% vertical padding reduction */
+        line-height: 1.3 !important;
+    }
+    .tickets-table td {
+        font-size: 0.87rem !important; /* ~13px */
+    }
+    .tickets-table th {
+        font-size: 0.8rem !important; /* ~12px */
     }
 }
