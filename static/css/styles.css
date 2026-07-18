@@ -364,7 +364,7 @@ h1, h2, h3, h4 {
 
 .btn-primary {
     background-color: var(--primary);
-    color: var(--text-primary);
+    color: #ffffff;
 }
 .btn-primary:hover {
     background-color: var(--primary-hover);
@@ -383,7 +383,7 @@ h1, h2, h3, h4 {
 
 .btn-danger {
     background-color: var(--danger);
-    color: var(--text-primary);
+    color: #ffffff;
 }
 .btn-danger:hover {
     filter: brightness(0.9);
