@@ -1408,9 +1408,17 @@ class TestSolicitanteLandingAndStats:
         assert 'id="q"' in html
         assert 'tickets-table' in html
         
-    def test_listado_directivo_con_panel_stats(self, client, setup_users):
+    def test_listado_directivo_sin_panel_stats(self, client, setup_users):
         client.force_login(setup_users['directivo'])
         response = client.get(reverse('tickets_list'))
+        
+        assert response.status_code == 200
+        html = response.content.decode('utf-8')
+        assert 'id="panel-stats"' not in html
+
+    def test_dashboard_directivo_con_panel_stats(self, client, setup_users):
+        client.force_login(setup_users['directivo'])
+        response = client.get(reverse('dashboard'))
         
         assert response.status_code == 200
         html = response.content.decode('utf-8')
